@@ -105,6 +105,16 @@ package_lambdas() {
     zip -r ../../email-verification-function.zip . > /dev/null
     cd ../../../
     
+    # Package unsubscribe function
+    echo "Packaging unsubscribe function..."
+    cd lambdas
+    pip install --index-url https://pypi.org/simple -r requirements.txt -t build/unsubscribe/
+    cp -r shared build/unsubscribe/
+    cp unsubscribe/lambda_function.py build/unsubscribe/
+    cd build/unsubscribe
+    zip -r ../../unsubscribe-function.zip . > /dev/null
+    cd ../../../
+    
     echo -e "${GREEN}✅ Lambda functions packaged${NC}"
 }
 
@@ -167,6 +177,12 @@ update_lambda_code() {
         --zip-file fileb://email-verification-function.zip \
         --region $AWS_REGION > /dev/null
     
+    # Update unsubscribe function
+    aws lambda update-function-code \
+        --function-name "${PROJECT_NAME}-unsubscribe-${ENVIRONMENT}" \
+        --zip-file fileb://unsubscribe-function.zip \
+        --region $AWS_REGION > /dev/null
+    
     echo -e "${GREEN}✅ Lambda functions updated${NC}"
 }
 
@@ -203,6 +219,7 @@ cleanup() {
     rm -f subscription-function.zip
     rm -f weekly-digest-function.zip
     rm -f email-verification-function.zip
+    rm -f unsubscribe-function.zip
     echo -e "${GREEN}✅ Cleanup completed${NC}"
 }
 

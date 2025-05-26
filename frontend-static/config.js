@@ -3,7 +3,7 @@
 
 const config = {
   // API Gateway endpoint (update after deployment)
-  API_BASE_URL: 'https://zjqk5961gc.execute-api.us-east-1.amazonaws.com/production',
+  API_BASE_URL: 'https://dzin6h5zvf.execute-api.us-east-1.amazonaws.com/production',
   
   // Subscription endpoint
   SUBSCRIPTION_ENDPOINT: '/subscribe',

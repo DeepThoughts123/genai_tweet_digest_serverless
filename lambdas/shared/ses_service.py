@@ -8,6 +8,7 @@ from typing import List, Dict, Any
 from datetime import datetime
 from botocore.exceptions import ClientError
 from .config import config
+from .unsubscribe_service import UnsubscribeService
 
 class SESEmailService:
     """Simplified email service using Amazon SES."""
@@ -15,6 +16,7 @@ class SESEmailService:
     def __init__(self):
         self.ses_client = config.ses_client
         self.from_email = config.from_email
+        self.unsubscribe_service = UnsubscribeService()
     
     def send_digest_email(self, digest_data: Dict[str, Any], subscribers: List[str], subject: str) -> Dict[str, Any]:
         """Send digest email to all subscribers."""
@@ -36,11 +38,15 @@ class SESEmailService:
         # Send to each subscriber individually
         for email in subscribers:
             try:
+                # Generate personalized content with unsubscribe link
+                personalized_html = self._add_unsubscribe_link(html_content, email)
+                personalized_text = self._add_unsubscribe_link_text(text_content, email)
+                
                 self._send_single_email(
                     to_email=email,
                     subject=subject,
-                    html_content=html_content,
-                    text_content=text_content
+                    html_content=personalized_html,
+                    text_content=personalized_text
                 )
                 sent_count += 1
             except Exception as e:
@@ -139,6 +145,7 @@ class SESEmailService:
             <div class="footer">
                 <p>Generated on {formatted_date}</p>
                 <p>This digest was automatically curated from tweets by leading AI researchers and organizations.</p>
+                <!-- Unsubscribe link will be added here -->
             </div>
         </body>
         </html>
@@ -169,6 +176,40 @@ class SESEmailService:
         
         text += """
 This digest was automatically curated from tweets by leading AI researchers and organizations.
+
+<!-- Unsubscribe link will be added here -->
 """
         
-        return text 
+        return text
+    
+    def _add_unsubscribe_link(self, html_content: str, email: str) -> str:
+        """Add unsubscribe link to HTML content."""
+        # Get the API Gateway URL from environment or config
+        api_base_url = config.get_api_base_url()
+        unsubscribe_token = self.unsubscribe_service.get_unsubscribe_token(email)
+        unsubscribe_url = f"{api_base_url}/unsubscribe?token={unsubscribe_token}"
+        
+        unsubscribe_html = f"""
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+                    <p style="font-size: 12px; color: #888;">
+                        Don't want to receive these emails? 
+                        <a href="{unsubscribe_url}" style="color: #667eea;">Unsubscribe here</a>
+                    </p>
+                </div>"""
+        
+        # Replace the placeholder comment
+        return html_content.replace("<!-- Unsubscribe link will be added here -->", unsubscribe_html)
+    
+    def _add_unsubscribe_link_text(self, text_content: str, email: str) -> str:
+        """Add unsubscribe link to text content."""
+        # Get the API Gateway URL from environment or config
+        api_base_url = config.get_api_base_url()
+        unsubscribe_token = self.unsubscribe_service.get_unsubscribe_token(email)
+        unsubscribe_url = f"{api_base_url}/unsubscribe?token={unsubscribe_token}"
+        
+        unsubscribe_text = f"""
+Don't want to receive these emails? Unsubscribe here: {unsubscribe_url}
+"""
+        
+        # Replace the placeholder comment
+        return text_content.replace("<!-- Unsubscribe link will be added here -->", unsubscribe_text) 

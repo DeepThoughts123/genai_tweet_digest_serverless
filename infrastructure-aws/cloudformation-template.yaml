@@ -194,6 +194,7 @@ Resources:
           S3_BUCKET: !Ref DataBucket
           SUBSCRIBERS_TABLE: !Ref SubscribersTable
           FROM_EMAIL: !Ref FromEmail
+          API_BASE_URL: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
       Timeout: 900  # 15 minutes
       MemorySize: 1024
 
@@ -215,6 +216,27 @@ Resources:
           S3_BUCKET: !Ref DataBucket
           SUBSCRIBERS_TABLE: !Ref SubscribersTable
           FROM_EMAIL: !Ref FromEmail
+      Timeout: 30
+      MemorySize: 256
+
+  # Unsubscribe Lambda Function
+  UnsubscribeFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-unsubscribe-${Environment}"
+      Runtime: python3.11
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {'statusCode': 200, 'body': 'Placeholder - deploy actual code'}
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          S3_BUCKET: !Ref DataBucket
+          SUBSCRIBERS_TABLE: !Ref SubscribersTable
+          API_BASE_URL: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
       Timeout: 30
       MemorySize: 256
 
@@ -243,6 +265,14 @@ Resources:
       RestApiId: !Ref ApiGateway
       ParentId: !GetAtt ApiGateway.RootResourceId
       PathPart: verify
+
+  # API Gateway Resource for unsubscribe
+  UnsubscribeResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ParentId: !GetAtt ApiGateway.RootResourceId
+      PathPart: unsubscribe
 
   # API Gateway Method for subscription
   SubscriptionMethod:
@@ -305,6 +335,21 @@ Resources:
       MethodResponses:
         - StatusCode: 200
 
+  # API Gateway Method for unsubscribe
+  UnsubscribeMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ResourceId: !Ref UnsubscribeResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UnsubscribeFunction.Arn}/invocations"
+      MethodResponses:
+        - StatusCode: 200
+
   # Lambda permission for API Gateway
   SubscriptionLambdaPermission:
     Type: AWS::Lambda::Permission
@@ -323,6 +368,15 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/*"
 
+  # Lambda permission for unsubscribe
+  UnsubscribeLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref UnsubscribeFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/*"
+
   # API Gateway Deployment
   ApiDeployment:
     Type: AWS::ApiGateway::Deployment
@@ -330,17 +384,18 @@ Resources:
       - SubscriptionMethod
       - SubscriptionOptionsMethod
       - VerifyMethod
+      - UnsubscribeMethod
     Properties:
       RestApiId: !Ref ApiGateway
       StageName: !Ref Environment
 
-  # EventBridge rule for weekly digest
+  # EventBridge rule for digest generation (30-minute testing schedule)
   WeeklyDigestSchedule:
     Type: AWS::Events::Rule
     Properties:
-      Name: !Sub "${ProjectName}-weekly-schedule-${Environment}"
-      Description: Trigger weekly digest generation
-      ScheduleExpression: "cron(0 9 ? * SUN *)"  # Every Sunday at 9 AM UTC
+      Name: !Sub "${ProjectName}-digest-schedule-${Environment}"
+      Description: Trigger digest generation every 30 minutes for testing
+      ScheduleExpression: "cron(*/30 * * * ? *)"  # Every 30 minutes for testing
       State: ENABLED
       Targets:
         - Arn: !GetAtt WeeklyDigestFunction.Arn
@@ -423,4 +478,10 @@ Outputs:
     Description: Name of the DynamoDB table for subscribers
     Value: !Ref SubscribersTable
     Export:
-      Name: !Sub "${ProjectName}-subscribers-table-${Environment}" 
+      Name: !Sub "${ProjectName}-subscribers-table-${Environment}"
+
+  CloudFrontDistributionId:
+    Description: CloudFront Distribution ID
+    Value: !Ref CloudFrontDistribution
+    Export:
+      Name: !Sub "${ProjectName}-cloudfront-id-${Environment}" 
