@@ -46,10 +46,27 @@ This is a **cost-optimized serverless version** of the GenAI Tweets Digest that 
 ### 1. Set Environment Variables
 
 ```bash
+# Set AWS Profile (use 'personal' profile for this project)
+export AWS_PROFILE=personal
+
+# Set API keys and configuration
 export TWITTER_BEARER_TOKEN="your_twitter_bearer_token"
 export GEMINI_API_KEY="your_gemini_api_key"
 export FROM_EMAIL="your_verified_ses_email@domain.com"
 export AWS_REGION="us-east-1"  # Optional, defaults to us-east-1
+
+# Verify AWS credentials are working
+aws sts get-caller-identity
+```
+
+**📦 Important**: For all pip installations in this project, always use:
+```bash
+pip install --index-url https://pypi.org/simple package-name
+```
+
+**🐍 Virtual Environment**: Always activate the virtual environment for local development:
+```bash
+source .venv311/bin/activate
 ```
 
 ### 2. Deploy Infrastructure
@@ -145,32 +162,61 @@ ScheduleExpression: "cron(0 9 ? * SUN *)"  # Every Sunday at 9 AM UTC
 
 ## 🧪 Testing
 
-### Test Subscription
+### Test Subscription with Email Verification
 
 ```bash
-# Get API endpoint from CloudFormation outputs
-API_URL=$(aws cloudformation describe-stacks \
-  --stack-name genai-tweets-digest-production \
-  --query 'Stacks[0].Outputs[?OutputKey==`SubscriptionEndpoint`].OutputValue' \
-  --output text)
+# Set AWS Profile
+export AWS_PROFILE=personal
 
-# Test subscription
+# Get API endpoint from CloudFormation outputs (use actual stack name)
+API_URL=$(zsh -d -f -c "export AWS_PROFILE=personal && aws cloudformation describe-stacks \
+  --stack-name genai-tweets-digest-20250525-210414 \
+  --region us-east-1 \
+  --query 'Stacks[0].Outputs[?OutputKey==\`SubscriptionEndpoint\`].OutputValue' \
+  --output text | cat")
+
+# Test subscription (this will send a verification email)
 curl -X POST $API_URL \
   -H "Content-Type: application/json" \
-  -d '{"email": "test@example.com"}'
+  -d '{"email": "your-verified-email@domain.com"}'
+
+# Expected response: "Verification email sent. Please check your inbox."
 ```
 
-### Test Weekly Digest
+### Email Verification Flow
+
+1. **User subscribes** → Receives verification email
+2. **User clicks verification link** → Email is verified and subscription activated
+3. **User receives weekly digests** → Only verified subscribers get emails
+
+**Note**: You need to verify your sender email in SES first:
+```bash
+export AWS_PROFILE=personal
+aws ses verify-email-identity --email-address your-sender@domain.com --region us-east-1
+```
+
+### Test Weekly Digest (Adhoc Run)
 
 ```bash
-# Manually trigger the weekly digest function
-aws lambda invoke \
+# Set AWS Profile
+export AWS_PROFILE=personal
+
+# Create payload file for clean execution
+echo '{"source": "manual", "detail-type": "Manual Trigger"}' > /tmp/digest_payload.json
+
+# Manually trigger the weekly digest function using clean shell execution
+zsh -d -f -c "export AWS_PROFILE=personal && aws lambda invoke \
   --function-name genai-tweets-digest-weekly-digest-production \
-  --payload '{}' \
-  response.json
+  --payload file:///tmp/digest_payload.json \
+  --region us-east-1 \
+  /tmp/digest_response.json \
+  --cli-binary-format raw-in-base64-out | cat"
 
 # Check the response
-cat response.json
+cat /tmp/digest_response.json | jq .
+
+# Monitor the execution logs
+aws logs tail /aws/lambda/genai-tweets-digest-weekly-digest-production --follow
 ```
 
 ## 📊 Monitoring
@@ -282,14 +328,23 @@ aws s3 sync frontend-static/out/ s3://$WEBSITE_BUCKET/
 ### Logs and Debugging
 
 ```bash
-# Check CloudFormation stack status
-aws cloudformation describe-stacks --stack-name genai-tweets-digest-production
+# Set AWS Profile
+export AWS_PROFILE=personal
+
+# Check CloudFormation stack status (use actual stack name)
+zsh -d -f -c "export AWS_PROFILE=personal && aws cloudformation describe-stacks \
+  --stack-name genai-tweets-digest-20250525-210414 \
+  --region us-east-1 | cat"
 
 # View Lambda function configuration
-aws lambda get-function --function-name genai-tweets-digest-weekly-digest-production
+zsh -d -f -c "export AWS_PROFILE=personal && aws lambda get-function \
+  --function-name genai-tweets-digest-weekly-digest-production \
+  --region us-east-1 | cat"
 
 # Check recent Lambda invocations
-aws logs describe-log-groups --log-group-name-prefix /aws/lambda/genai-tweets-digest
+zsh -d -f -c "export AWS_PROFILE=personal && aws logs describe-log-groups \
+  --log-group-name-prefix /aws/lambda/genai-tweets-digest \
+  --region us-east-1 | cat"
 ```
 
 ## 🔐 Security
@@ -326,6 +381,27 @@ If you encounter issues:
 ✅ **Easy data portability**  
 ✅ **Simplified deployment**  
 ✅ **Built-in monitoring**  
+
+## 📚 Documentation
+
+For detailed implementation guidance and lessons learned:
+
+- **[Development Setup Guide](docs/DEVELOPMENT_SETUP.md)** - Updated with email verification lessons and virtual environment best practices
+- **[Email Verification Setup](docs/EMAIL_VERIFICATION_SETUP.md)** - Updated with implementation lessons, deployment challenges, and solutions
+- **[AWS CLI Best Practices](docs/AWS_CLI_BEST_PRACTICES.md)** - Updated with Lambda packaging, CloudFormation, and deployment lessons
+- **[E2E Testing Guide](docs/E2E_TESTING_PLAN.md)** - Comprehensive testing strategy and implementation
+- **[Implementation Progress](docs/IMPLEMENTATION_PROGRESS.md)** - Detailed technical progress tracking
+
+### Recent Documentation Updates
+
+The documentation has been enhanced with lessons learned from implementing the email verification system, including:
+
+- **Lambda Function Packaging Optimization** - Reducing package sizes from 51MB to 15MB
+- **CloudFormation Template Management** - Adding new Lambda functions and API Gateway endpoints
+- **Environment Variable Management** - Handling function-specific requirements
+- **SES Integration Testing** - Working with sandbox mode and email verification
+- **API Gateway Deployment Timing** - Ensuring new endpoints are accessible
+- **Virtual Environment Best Practices** - Consistent development environment setup
 
 ---
 

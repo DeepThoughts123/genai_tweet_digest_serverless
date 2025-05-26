@@ -1,0 +1,18 @@
+# Development Requirements for GenAI Tweets Digest
+# 
+# Install with: pip install --index-url https://pypi.org/simple -r dev-requirements.txt
+#
+# Note: Always use --index-url https://pypi.org/simple for pip installs in this project
+
+# Testing dependencies
+pytest>=7.0.0
+moto[dynamodb,ses]>=5.0.0
+
+# Code quality
+black>=22.0.0
+flake8>=4.0.0
+mypy>=0.900
+
+# Development utilities
+ipython>=8.0.0
+jupyter>=1.0.0 

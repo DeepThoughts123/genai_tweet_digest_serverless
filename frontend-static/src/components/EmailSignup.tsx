@@ -36,7 +36,7 @@ export default function EmailSignup({ onSubscribe }: EmailSignupProps) {
         await ApiService.subscribe(email.trim());
         
         // ApiService.subscribe returns the response data on success
-        setMessage('Thank you! You\'ll receive our weekly digest soon.');
+        setMessage('Verification email sent! Please check your inbox and click the verification link to complete your subscription.');
         setEmail('');
       }
     } catch (error: unknown) {
@@ -108,7 +108,7 @@ export default function EmailSignup({ onSubscribe }: EmailSignupProps) {
       
       {message && (
         <p className={`mt-3 text-sm ${
-          message.includes('Thank you') 
+          message.includes('Verification email sent') || message.includes('resent') || message.includes('Thank you')
             ? 'text-green-600' 
             : 'text-red-600'
         }`}>
@@ -117,7 +117,7 @@ export default function EmailSignup({ onSubscribe }: EmailSignupProps) {
       )}
       
       <p className="mt-3 text-xs text-gray-500">
-        No spam, unsubscribe at any time. We respect your privacy.
+        You&apos;ll receive a verification email first. No spam, unsubscribe at any time. We respect your privacy.
       </p>
     </div>
   );

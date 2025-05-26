@@ -451,4 +451,203 @@ cat /tmp/response.json | jq .
    # Test the website with different scenarios
    ```
 
+## 7. Email Verification System Implementation Lessons Learned
+
+### Lambda Function Packaging for Email Verification
+
+**Problem:** Email verification Lambda functions require minimal dependencies but were being packaged with heavy dependencies like `google-generativeai` and `grpcio`, causing package sizes to exceed Lambda's 50MB direct upload limit.
+
+**Root Cause:** Using the same `requirements.txt` for all Lambda functions, regardless of their actual dependencies.
+
+**Solution:** Create function-specific requirements files for minimal dependency packaging:
+
+```bash
+# Create minimal requirements for email verification
+# lambdas/email-verification-requirements.txt
+boto3>=1.34.0
+botocore>=1.34.0
+
+# Package with minimal dependencies
+cd lambdas
+pip install --index-url https://pypi.org/simple -r email-verification-requirements.txt -t build/email-verification/
+cp -r shared build/email-verification/
+cp email-verification/lambda_function.py build/email-verification/
+cd build/email-verification
+zip -r ../../email-verification-function.zip . > /dev/null
+```
+
+**Results:**
+- Email verification package reduced from 51MB to 15MB
+- Successful direct Lambda function updates without S3 staging
+- Faster deployment times for lightweight functions
+
+### CloudFormation Template Updates for New Lambda Functions
+
+**Problem:** Adding new Lambda functions to existing CloudFormation stacks requires careful dependency management and API Gateway deployment updates.
+
+**Key Requirements:**
+1. **Add Lambda Function Resource:**
+   ```yaml
+   EmailVerificationFunction:
+     Type: AWS::Lambda::Function
+     Properties:
+       FunctionName: !Sub "${ProjectName}-email-verification-${Environment}"
+       # ... other properties
+   ```
+
+2. **Add API Gateway Resources:**
+   ```yaml
+   VerifyResource:
+     Type: AWS::ApiGateway::Resource
+     Properties:
+       PathPart: verify
+   
+   VerifyMethod:
+     Type: AWS::ApiGateway::Method
+     Properties:
+       HttpMethod: GET
+       # ... integration with Lambda
+   ```
+
+3. **Update API Gateway Deployment Dependencies:**
+   ```yaml
+   ApiDeployment:
+     Type: AWS::ApiGateway::Deployment
+     DependsOn:
+       - SubscriptionMethod
+       - SubscriptionOptionsMethod
+       - VerifyMethod  # Add new method here
+   ```
+
+4. **Add Lambda Permissions:**
+   ```yaml
+   EmailVerificationLambdaPermission:
+     Type: AWS::Lambda::Permission
+     Properties:
+       FunctionName: !Ref EmailVerificationFunction
+       Action: lambda:InvokeFunction
+       Principal: apigateway.amazonaws.com
+   ```
+
+**Critical Step:** After CloudFormation update, create new API Gateway deployment:
+```bash
+zsh -d -f -c "aws apigateway create-deployment --rest-api-id API_ID --stage-name production --region us-east-1 | cat"
+```
+
+### Environment Variable Management for Lambda Functions
+
+**Problem:** Different Lambda functions require different environment variables, but shared configuration validation was checking for all variables in all functions.
+
+**Solution Approaches:**
+
+1. **Function-Specific Environment Variables:**
+   ```bash
+   # Email verification function needs minimal variables
+   aws lambda update-function-configuration \
+     --function-name email-verification-function \
+     --environment 'Variables={
+       SUBSCRIBERS_TABLE=table-name,
+       FROM_EMAIL=sender@domain.com,
+       ENVIRONMENT=production
+     }'
+   ```
+
+2. **Conditional Configuration Validation:**
+   ```python
+   # In shared/config.py - make validation function-aware
+   def validate_required_env_vars(function_type=None):
+       if function_type == 'email_verification':
+           required = ['SUBSCRIBERS_TABLE', 'FROM_EMAIL', 'ENVIRONMENT']
+       else:
+           required = ['TWITTER_BEARER_TOKEN', 'GEMINI_API_KEY', ...]
+   ```
+
+3. **Provide All Variables for Simplicity:**
+   ```bash
+   # Simpler approach: provide all variables to all functions
+   # Even if not used, avoids configuration complexity
+   ```
+
+### Lambda Function Code Updates via S3
+
+**Problem:** Large Lambda packages (>50MB) cannot be updated directly and must be uploaded via S3.
+
+**Effective Workflow:**
+```bash
+# 1. Upload package to S3
+zsh -d -f -c "aws s3 cp function.zip s3://data-bucket/lambda-packages/function.zip --region us-east-1 | cat"
+
+# 2. Update Lambda function from S3
+zsh -d -f -c "aws lambda update-function-code --function-name FUNCTION_NAME --s3-bucket data-bucket --s3-key lambda-packages/function.zip --region us-east-1 | cat"
+
+# 3. Verify update
+zsh -d -f -c "aws lambda get-function --function-name FUNCTION_NAME --query 'Configuration.LastModified' --output text | cat"
+```
+
+### SES Email Verification for Testing
+
+**Problem:** Amazon SES requires verification of both sender and recipient emails in sandbox mode, causing email verification testing to fail.
+
+**Testing Workflow:**
+```bash
+# 1. Verify sender email
+aws ses verify-email-identity --email-address sender@domain.com --region us-east-1
+
+# 2. Check verification status
+aws ses get-identity-verification-attributes --identities sender@domain.com --region us-east-1
+
+# 3. For testing, verify recipient emails too
+aws ses verify-email-identity --email-address test@domain.com --region us-east-1
+
+# 4. List all verified identities
+aws ses list-identities --region us-east-1
+```
+
+**Production Considerations:**
+- Request SES production access to send to unverified recipients
+- Set up SPF, DKIM, and DMARC records for better deliverability
+- Monitor bounce and complaint rates
+
+### API Gateway Method Integration Issues
+
+**Problem:** New API Gateway methods may not be accessible immediately after CloudFormation deployment due to deployment timing.
+
+**Symptoms:**
+- `curl` requests return "Missing Authentication Token"
+- API Gateway console shows method exists but returns 403/404
+
+**Solution:**
+```bash
+# Force new API Gateway deployment after CloudFormation update
+API_ID=$(aws cloudformation describe-stacks --stack-name STACK_NAME --query 'Stacks[0].Outputs[?OutputKey==`ApiGatewayId`].OutputValue' --output text)
+
+zsh -d -f -c "aws apigateway create-deployment --rest-api-id $API_ID --stage-name production --region us-east-1 | cat"
+
+# Verify deployment
+zsh -d -f -c "aws apigateway get-deployments --rest-api-id $API_ID --region us-east-1 --query 'items[0].createdDate' --output text | cat"
+```
+
+### Virtual Environment and Package Management
+
+**Critical Practice:** Always activate virtual environment and use correct PyPI index:
+
+```bash
+# 1. Activate virtual environment
+source .venv311/bin/activate
+
+# 2. Install with correct index
+pip install --index-url https://pypi.org/simple package-name
+
+# 3. Verify environment
+which python
+pip list | grep package-name
+```
+
+**Deployment Script Integration:**
+```bash
+# In deployment scripts, ensure clean environment
+source .venv311/bin/activate
+pip install --index-url https://pypi.org/simple -r requirements.txt -t build/
+```
+
 By applying these learnings, deployments become smoother, and troubleshooting is more effective. 

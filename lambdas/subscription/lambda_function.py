@@ -11,6 +11,7 @@ import os
 # sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'shared')) # Removed for Lambda packaging
 
 from shared.dynamodb_service import SubscriberService, validate_email
+from shared.email_verification_service import EmailVerificationService
 from shared.config import config
 
 def lambda_handler(event, context):
@@ -96,9 +97,37 @@ def lambda_handler(event, context):
                 })
             }
         
-        # Add subscriber
+        # Check if email already exists (active or pending)
         subscriber_service = SubscriberService()
-        result = subscriber_service.add_subscriber(email)
+        existing_subscriber = subscriber_service.get_subscriber_by_email(email)
+        
+        if existing_subscriber:
+            if existing_subscriber['status'] == 'active':
+                return {
+                    'statusCode': 409,
+                    'headers': headers,
+                    'body': json.dumps({
+                        'success': False,
+                        'message': 'Email already subscribed to weekly digest'
+                    })
+                }
+            elif existing_subscriber['status'] == 'pending_verification':
+                # Resend verification email
+                verification_service = EmailVerificationService()
+                result = verification_service.resend_verification(email)
+                
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps({
+                        'success': True,
+                        'message': 'Verification email resent. Please check your inbox.'
+                    })
+                }
+        
+        # Create new pending subscriber with verification
+        verification_service = EmailVerificationService()
+        result = verification_service.create_pending_subscriber(email)
         
         if result['success']:
             return {
@@ -106,14 +135,13 @@ def lambda_handler(event, context):
                 'headers': headers,
                 'body': json.dumps({
                     'success': True,
-                    'message': 'Successfully subscribed to GenAI Weekly Digest!',
+                    'message': result['message'],
                     'subscriber_id': result['subscriber_id']
                 })
             }
         else:
-            # Email already exists
             return {
-                'statusCode': 409,
+                'statusCode': 500,
                 'headers': headers,
                 'body': json.dumps({
                     'success': False,

@@ -71,29 +71,39 @@ package_lambdas() {
     echo -e "${YELLOW}📦 Packaging Lambda functions...${NC}"
     
     # Create build directory
-    BUILD_DIR="build"
+    BUILD_DIR="lambdas/build"
     rm -rf $BUILD_DIR
     mkdir -p $BUILD_DIR
     
     # Package subscription function
     echo "Packaging subscription function..."
     cd lambdas
-    pip install -r requirements.txt -t $BUILD_DIR/subscription/
-    cp -r shared $BUILD_DIR/subscription/
-    cp subscription/lambda_function.py $BUILD_DIR/subscription/
-    cd $BUILD_DIR/subscription
+    pip install --index-url https://pypi.org/simple -r requirements.txt -t build/subscription/
+    cp -r shared build/subscription/
+    cp subscription/lambda_function.py build/subscription/
+    cd build/subscription
     zip -r ../../subscription-function.zip . > /dev/null
-    cd ../../
+    cd ../../../
     
     # Package weekly digest function
     echo "Packaging weekly digest function..."
     cd lambdas
-    pip install -r requirements.txt -t $BUILD_DIR/weekly-digest/
-    cp -r shared $BUILD_DIR/weekly-digest/
-    cp weekly-digest/lambda_function.py $BUILD_DIR/weekly-digest/
-    cd $BUILD_DIR/weekly-digest
+    pip install --index-url https://pypi.org/simple -r requirements.txt -t build/weekly-digest/
+    cp -r shared build/weekly-digest/
+    cp weekly-digest/lambda_function.py build/weekly-digest/
+    cd build/weekly-digest
     zip -r ../../weekly-digest-function.zip . > /dev/null
-    cd ../../
+    cd ../../../
+    
+    # Package email verification function
+    echo "Packaging email verification function..."
+    cd lambdas
+    pip install --index-url https://pypi.org/simple -r requirements.txt -t build/email-verification/
+    cp -r shared build/email-verification/
+    cp email-verification/lambda_function.py build/email-verification/
+    cd build/email-verification
+    zip -r ../../email-verification-function.zip . > /dev/null
+    cd ../../../
     
     echo -e "${GREEN}✅ Lambda functions packaged${NC}"
 }
@@ -151,6 +161,12 @@ update_lambda_code() {
         --zip-file fileb://weekly-digest-function.zip \
         --region $AWS_REGION > /dev/null
     
+    # Update email verification function
+    aws lambda update-function-code \
+        --function-name "${PROJECT_NAME}-email-verification-${ENVIRONMENT}" \
+        --zip-file fileb://email-verification-function.zip \
+        --region $AWS_REGION > /dev/null
+    
     echo -e "${GREEN}✅ Lambda functions updated${NC}"
 }
 
@@ -183,9 +199,10 @@ get_outputs() {
 # Cleanup build files
 cleanup() {
     echo -e "${YELLOW}🧹 Cleaning up...${NC}"
-    rm -rf build/
+    rm -rf lambdas/build/
     rm -f subscription-function.zip
     rm -f weekly-digest-function.zip
+    rm -f email-verification-function.zip
     echo -e "${GREEN}✅ Cleanup completed${NC}"
 }
 

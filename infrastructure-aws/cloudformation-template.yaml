@@ -197,6 +197,27 @@ Resources:
       Timeout: 900  # 15 minutes
       MemorySize: 1024
 
+  # Email Verification Lambda Function
+  EmailVerificationFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-email-verification-${Environment}"
+      Runtime: python3.11
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {'statusCode': 200, 'body': 'Placeholder - deploy actual code'}
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          S3_BUCKET: !Ref DataBucket
+          SUBSCRIBERS_TABLE: !Ref SubscribersTable
+          FROM_EMAIL: !Ref FromEmail
+      Timeout: 30
+      MemorySize: 256
+
   # API Gateway
   ApiGateway:
     Type: AWS::ApiGateway::RestApi
@@ -214,6 +235,14 @@ Resources:
       RestApiId: !Ref ApiGateway
       ParentId: !GetAtt ApiGateway.RootResourceId
       PathPart: subscribe
+
+  # API Gateway Resource for email verification
+  VerifyResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ParentId: !GetAtt ApiGateway.RootResourceId
+      PathPart: verify
 
   # API Gateway Method for subscription
   SubscriptionMethod:
@@ -261,11 +290,35 @@ Resources:
             method.response.header.Access-Control-Allow-Headers: false
             method.response.header.Access-Control-Allow-Methods: false
 
+  # API Gateway Method for email verification
+  VerifyMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref ApiGateway
+      ResourceId: !Ref VerifyResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${EmailVerificationFunction.Arn}/invocations"
+      MethodResponses:
+        - StatusCode: 200
+
   # Lambda permission for API Gateway
   SubscriptionLambdaPermission:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref SubscriptionFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/*"
+
+  # Lambda permission for email verification
+  EmailVerificationLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref EmailVerificationFunction
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/*"
@@ -276,6 +329,7 @@ Resources:
     DependsOn:
       - SubscriptionMethod
       - SubscriptionOptionsMethod
+      - VerifyMethod
     Properties:
       RestApiId: !Ref ApiGateway
       StageName: !Ref Environment
