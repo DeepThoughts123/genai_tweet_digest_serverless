@@ -205,46 +205,40 @@ class TestWeeklyDigestLambda(unittest.TestCase):
         """Set up test fixtures."""
         # Clear any existing lambda_function imports
         import importlib
-        if 'lambda_function' in sys.modules:
-            del sys.modules['lambda_function']
+        modules_to_clear = [
+            'lambda_function',
+            'weekly_digest_lambda_function'
+        ]
+        for module in modules_to_clear:
+            if module in sys.modules:
+                del sys.modules[module]
         
-        # Add weekly-digest to path first and remove subscription path temporarily
-        weekly_digest_path = os.path.join(os.path.dirname(__file__), '..', 'weekly-digest')
-        subscription_path = os.path.join(os.path.dirname(__file__), '..', 'subscription')
+        # Import weekly digest lambda function directly from its path
+        import importlib.util
+        weekly_digest_path = os.path.join(os.path.dirname(__file__), '..', 'weekly-digest', 'lambda_function.py')
+        spec = importlib.util.spec_from_file_location("weekly_digest_lambda_function", weekly_digest_path)
+        weekly_lambda_function = importlib.util.module_from_spec(spec)
+        sys.modules["weekly_digest_lambda_function"] = weekly_lambda_function
+        spec.loader.exec_module(weekly_lambda_function)
         
-        # Remove subscription path if it exists
-        if subscription_path in sys.path:
-            sys.path.remove(subscription_path)
+        self.lambda_function = weekly_lambda_function
         
-        # Add weekly-digest path at the beginning
-        if weekly_digest_path not in sys.path:
-            sys.path.insert(0, weekly_digest_path)
-        
-        # Mock the config module before importing lambda_function
-        self.config_patcher = patch('lambda_function.config')
+        # Mock the config module after importing lambda_function
+        self.config_patcher = patch.object(weekly_lambda_function, 'config')
         self.mock_config = self.config_patcher.start()
         self.mock_config.validate_required_env_vars.return_value = True
         self.mock_config.get_influential_accounts.return_value = ['testuser1', 'testuser2']
-        
-        # Import weekly digest lambda function
-        import lambda_function as weekly_lambda_function
-        self.lambda_function = weekly_lambda_function
     
     def tearDown(self):
         """Clean up patches."""
         self.config_patcher.stop()
-        
-        # Restore subscription path
-        subscription_path = os.path.join(os.path.dirname(__file__), '..', 'subscription')
-        if subscription_path not in sys.path:
-            sys.path.append(subscription_path)
     
-    @patch('lambda_function.TweetFetcher')
-    @patch('lambda_function.TweetCategorizer')
-    @patch('lambda_function.TweetSummarizer')
-    @patch('lambda_function.SubscriberService')
-    @patch('lambda_function.SESEmailService')
-    @patch('lambda_function.S3DataManager')
+    @patch('weekly_digest_lambda_function.TweetFetcher')
+    @patch('weekly_digest_lambda_function.TweetCategorizer')
+    @patch('weekly_digest_lambda_function.TweetSummarizer')
+    @patch('weekly_digest_lambda_function.SubscriberService')
+    @patch('weekly_digest_lambda_function.SESEmailService')
+    @patch('weekly_digest_lambda_function.S3DataManager')
     def test_weekly_digest_success(self, mock_s3, mock_email, mock_subscriber, 
                                    mock_summarizer, mock_categorizer, mock_fetcher):
         """Test successful weekly digest generation."""
@@ -304,7 +298,7 @@ class TestWeeklyDigestLambda(unittest.TestCase):
         self.assertEqual(body['tweets_processed'], 2)
         self.assertEqual(body['categories_generated'], 2)
     
-    @patch('lambda_function.TweetFetcher')
+    @patch('weekly_digest_lambda_function.TweetFetcher')
     def test_weekly_digest_no_tweets(self, mock_fetcher):
         """Test weekly digest when no tweets are fetched."""
         # Mock empty tweet response
@@ -325,11 +319,11 @@ class TestWeeklyDigestLambda(unittest.TestCase):
         self.assertEqual(body['status'], 'skipped')
         self.assertEqual(body['reason'], 'no_tweets')
     
-    @patch('lambda_function.TweetFetcher')
-    @patch('lambda_function.TweetCategorizer')
-    @patch('lambda_function.TweetSummarizer')
-    @patch('lambda_function.SubscriberService')
-    @patch('lambda_function.S3DataManager')
+    @patch('weekly_digest_lambda_function.TweetFetcher')
+    @patch('weekly_digest_lambda_function.TweetCategorizer')
+    @patch('weekly_digest_lambda_function.TweetSummarizer')
+    @patch('weekly_digest_lambda_function.SubscriberService')
+    @patch('weekly_digest_lambda_function.S3DataManager')
     def test_weekly_digest_no_subscribers(self, mock_s3, mock_subscriber, 
                                           mock_summarizer, mock_categorizer, mock_fetcher):
         """Test weekly digest when no subscribers exist."""
@@ -390,7 +384,7 @@ class TestWeeklyDigestLambda(unittest.TestCase):
         self.assertEqual(body['status'], 'error')
         self.assertIn('Missing required environment variables', body['error'])
     
-    @patch('lambda_function.TweetFetcher')
+    @patch('weekly_digest_lambda_function.TweetFetcher')
     def test_weekly_digest_exception_handling(self, mock_fetcher):
         """Test exception handling in weekly digest."""
         # Mock exception
@@ -409,26 +403,26 @@ class TestWeeklyDigestLambda(unittest.TestCase):
         self.assertEqual(body['status'], 'error')
         self.assertIn('Test error', body['error'])
     
-    @patch('lambda_function.lambda_handler')
-    def test_manual_trigger_handler(self, mock_main_handler):
+    def test_manual_trigger_handler(self):
         """Test manual trigger handler."""
-        # Mock main handler response
-        mock_main_handler.return_value = {
-            'statusCode': 200,
-            'body': json.dumps({'status': 'success'})
-        }
-        
-        # Test event
-        event = {}
-        context = {}
-        
-        # Test
-        response = self.lambda_function.manual_trigger_handler(event, context)
-        
-        # Assertions
-        self.assertEqual(response['statusCode'], 200)
-        body = json.loads(response['body'])
-        self.assertEqual(body['trigger_type'], 'manual')
+        # Mock the lambda_handler function within the same module
+        with patch.object(self.lambda_function, 'lambda_handler') as mock_main_handler:
+            mock_main_handler.return_value = {
+                'statusCode': 200,
+                'body': json.dumps({'status': 'success'})
+            }
+            
+            # Test event
+            event = {}
+            context = {}
+            
+            # Test
+            response = self.lambda_function.manual_trigger_handler(event, context)
+            
+            # Assertions
+            self.assertEqual(response['statusCode'], 200)
+            body = json.loads(response['body'])
+            self.assertEqual(body['trigger_type'], 'manual')
 
 if __name__ == '__main__':
     unittest.main() 
