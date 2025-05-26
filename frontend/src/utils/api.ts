@@ -39,8 +39,8 @@ class ApiService {
           errorMessage = data.error || 'Email already subscribed to weekly digest';
         }
         
-        const error = new Error(errorMessage);
-        (error as any).status = response.status;
+        const error = new Error(errorMessage) as Error & { status: number };
+        error.status = response.status;
         throw error;
       }
 
@@ -72,4 +72,5 @@ class ApiService {
   }
 }
 
-export default new ApiService(); 
+const apiService = new ApiService();
+export default apiService; 

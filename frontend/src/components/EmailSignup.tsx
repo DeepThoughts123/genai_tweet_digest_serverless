@@ -39,13 +39,13 @@ export default function EmailSignup({ onSubscribe }: EmailSignupProps) {
         setMessage('Thank you! You\'ll receive our weekly digest soon.');
         setEmail('');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Subscription error:', error);
       
       // Handle specific error messages from ApiService
       if (error instanceof Error) {
         const errorMessage = error.message;
-        const status = (error as any).status;
+        const status = (error as Error & { status?: number }).status;
         
         // Handle errors based on status code and message content
         if (status === 409 || errorMessage.includes('already subscribed') || errorMessage.includes('Email already subscribed')) {
