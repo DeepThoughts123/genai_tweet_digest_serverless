@@ -24,7 +24,7 @@ class EmailVerificationService:
         """Send verification email to the subscriber."""
         
         # Create verification URL using the actual API Gateway URL
-        verification_url = f"https://zjqk5961gc.execute-api.us-east-1.amazonaws.com/production/verify?token={verification_token}"
+        verification_url = f"{config.get_api_base_url()}/verify?token={verification_token}"
         
         # Email content
         subject = "Confirm your subscription to GenAI Weekly Digest"

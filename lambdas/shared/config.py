@@ -29,6 +29,9 @@ class LambdaConfig:
         # DynamoDB Configuration
         self.subscribers_table = os.getenv("SUBSCRIBERS_TABLE", "genai-digest-subscribers")
         
+        # API Gateway Configuration
+        self.api_gateway_url = os.getenv("API_GATEWAY_URL", "")
+        
         # Initialize AWS clients
         self.s3_client = boto3.client('s3', region_name=self.aws_region)
         self.dynamodb = boto3.resource('dynamodb', region_name=self.aws_region)
@@ -67,6 +70,15 @@ class LambdaConfig:
             return False
         
         return True
+    
+    def get_api_base_url(self) -> str:
+        """Get the API Gateway base URL for generating links."""
+        if self.api_gateway_url:
+            return self.api_gateway_url
+        
+        # Fallback: try to construct from environment
+        # This would be set during deployment
+        return os.getenv("API_BASE_URL", "https://dzin6h5zvf.execute-api.us-east-1.amazonaws.com/production")
 
 # Global config instance
 config = LambdaConfig() 
