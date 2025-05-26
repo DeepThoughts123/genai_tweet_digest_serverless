@@ -1,35 +1,102 @@
-Follow the instructions below strictly whenever you need to complete a new task:
+# Task Completion Instructions
 
-Step 1: Read README.md and README-SERVERLESS.md to understand the project and the serverless architecture.
-
-Step 2: Ready documents in ./docs folder to understand the learnings and best practices that have been documented by people who have worked on the project before both on development, testing, and deployment so you understand the potential issues and solutions, as well as best practices. 
-
-Step 3: Go on to work on the task. Whenever you need to add new code, make sure you check the ./docs/CODEBASE_STRUCTURE.md first to understand the codebase structure and determine the best place to add the new code before adding it. When you add new codes, follow the guidelines below:
-
-1. **Plan your implementation strategy**  
-   Decide where the code for Task 1.7 should live:
-   - Given the existing folder structure, which folder should it go into? Is this folder existing or need to be created?
-   - Within that folder, should it go into a new standalone file or should it extend an existing module?
-   Pick the approach that best fits the current architecture.
-   - If you need to create a new folder or a new file, make sure you ask for approval first.
-
-2. **Outline key functionality**  
-   Sketch out the main components and create boilerplate code that clearly defines the interfaces.
-
-3. **Write test cases**  
-   Use the TDD approach—write robust tests that reflect the expected behavior before fully implementing the logic.
-
-4. **Implement and validate**  
-   Complete the code and run your test cases to ensure everything functions as intended.
-
-8. **Review and refine**  
-   Do a final pass to optimize your code—look for simplification opportunities or performance improvements.
+**MANDATORY**: Follow these instructions strictly for every new task. Complete each step in order before proceeding to the next.
 
 ---
 
-## Additional Guidelines
+## Phase 1: Project Understanding (REQUIRED BEFORE CODING)
 
-- **Keep it clean and simple**: Prioritize readability and maintainability.
-- **Don’t over-engineer**: Avoid complex logic or unnecessary features unless absolutely necessary.
-- **Remember**: This is just an MVP—build only what’s needed.
-- **Use latest stable versions**: When no specific version is mentioned, choose the most recent stable release of libraries and tools.
+### Step 1: Read Project Documentation
+- **MUST READ**: `README-SERVERLESS.md`
+- **PURPOSE**: Understand the project scope and serverless architecture
+- **COMPLETION CRITERIA**: You can explain the project's purpose and architecture
+
+### Step 2: Study Best Practices Documentation
+- **MUST READ**: All documents in the `./docs` folder
+- **PURPOSE**: Learn from previous developers' experiences, including:
+  - Development best practices
+  - Testing strategies
+  - Deployment procedures
+  - Known issues and solutions
+- **COMPLETION CRITERIA**: You understand the documented patterns and potential pitfalls
+
+### Step 3: Review Codebase Structure
+- **MUST READ**: `./docs/CODEBASE_STRUCTURE.md`
+- **PURPOSE**: Understand where different types of code belong
+- **COMPLETION CRITERIA**: You know exactly where to place new code
+
+---
+
+## Phase 2: Implementation (FOLLOW THIS EXACT ORDER)
+
+### Step 4: Plan Implementation Strategy
+**BEFORE writing any code, answer these questions:**
+
+1. **Location Decision**:
+   - Which existing folder should contain this code?
+   - If no suitable folder exists, what new folder is needed?
+   - Should this be a new file or extend an existing module?
+
+2. **Architecture Alignment**:
+   - How does this fit with the current codebase structure?
+   - What dependencies will this introduce?
+
+3. **Approval Requirement**:
+   - **MANDATORY**: If creating new folders or files, request approval FIRST
+   - **MANDATORY**: If unsure about placement, ask for guidance FIRST
+
+### Step 5: Design Interfaces
+- **ACTION**: Create boilerplate code with clear function/class signatures
+- **INCLUDE**: Input parameters, return types, and main responsibilities
+- **PURPOSE**: Define the contract before implementation
+
+### Step 6: Write Tests First (TDD Approach)
+- **ACTION**: Write comprehensive test cases BEFORE implementing logic
+- **REQUIREMENTS**:
+  - Test happy path scenarios
+  - Test edge cases and error conditions
+  - Test integration points
+- **COMPLETION CRITERIA**: Tests fail appropriately (since logic isn't implemented yet)
+
+### Step 7: Implement Core Logic
+- **ACTION**: Write the minimum code needed to make tests pass
+- **FOCUS**: Functionality first, optimization later
+- **VALIDATION**: Run tests continuously during development
+
+### Step 8: Final Review and Refinement
+- **CHECKLIST**:
+  - [ ] All tests pass
+  - [ ] Code follows project conventions
+  - [ ] No unnecessary complexity
+  - [ ] Performance is acceptable
+  - [ ] Documentation is clear
+
+---
+
+## Mandatory Guidelines
+
+### Code Quality Standards
+- **Simplicity**: Write the simplest solution that works
+- **Readability**: Code should be self-documenting
+- **Maintainability**: Future developers should easily understand and modify your code
+
+### Project Constraints
+- **MVP Focus**: Build only what's explicitly required
+- **No Over-Engineering**: Avoid complex patterns unless absolutely necessary
+- **Latest Stable Versions**: Use current stable releases unless specified otherwise
+
+### Communication Requirements
+- **Ask Before Creating**: Always request approval for new files/folders
+- **Clarify Uncertainties**: Ask questions rather than making assumptions
+- **Document Decisions**: Explain non-obvious implementation choices
+
+---
+
+## Success Criteria
+
+Your task is complete when:
+1. ✅ All tests pass
+2. ✅ Code follows established patterns
+3. ✅ Documentation is updated (if applicable)
+4. ✅ No breaking changes to existing functionality
+5. ✅ Code review checklist is satisfied
