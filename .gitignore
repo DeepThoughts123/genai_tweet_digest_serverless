@@ -178,4 +178,4 @@ frontend-static/out/ # If 'out' is the build directory and regenerated
 .idea/
 .vscode/
 *.swp
-*~ 
+*~ .venv311/
