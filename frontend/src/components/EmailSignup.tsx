@@ -45,10 +45,12 @@ export default function EmailSignup({ onSubscribe }: EmailSignupProps) {
       // Handle specific error messages from ApiService
       if (error instanceof Error) {
         const errorMessage = error.message;
+        const status = (error as any).status;
         
-        if (errorMessage.includes('already subscribed') || errorMessage.includes('409')) {
+        // Handle errors based on status code and message content
+        if (status === 409 || errorMessage.includes('already subscribed') || errorMessage.includes('Email already subscribed')) {
           setMessage('Email already subscribed to weekly digest');
-        } else if (errorMessage.includes('invalid') || errorMessage.includes('validation')) {
+        } else if (status === 422 || errorMessage.includes('Validation error') || errorMessage.includes('field required')) {
           setMessage('Please enter a valid email address');
         } else {
           setMessage('Something went wrong. Please try again.');

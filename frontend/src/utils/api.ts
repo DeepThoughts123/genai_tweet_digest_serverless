@@ -29,7 +29,19 @@ class ApiService {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.message || 'Subscription failed');
+        // Create error with status code information for better error handling
+        let errorMessage = data.message || data.error || 'Subscription failed';
+        
+        // Add status code context for specific error handling
+        if (response.status === 422) {
+          errorMessage = 'Validation error: ' + errorMessage;
+        } else if (response.status === 409) {
+          errorMessage = data.error || 'Email already subscribed to weekly digest';
+        }
+        
+        const error = new Error(errorMessage);
+        (error as any).status = response.status;
+        throw error;
       }
 
       return data;
