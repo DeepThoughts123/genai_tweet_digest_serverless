@@ -1,0 +1,40 @@
+# Core FastAPI dependencies
+fastapi>=0.115.12
+uvicorn[standard]>=0.34.2
+
+# Database dependencies
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+
+# API integrations
+tweepy>=4.15.0
+google-genai>=1.16.1
+sendgrid>=6.11.0
+boto3>=1.35.0
+
+# Configuration and validation
+python-dotenv>=1.1.0
+pydantic>=2.11.5
+pydantic[email]>=2.11.5
+email-validator>=2.0.0
+
+# Scheduling and background tasks
+apscheduler>=3.10.0
+
+# Testing dependencies
+pytest>=8.3.5
+pytest-asyncio>=0.21.0
+httpx>=0.28.1
+
+# Development dependencies (optional)
+# Uncomment for development environment
+# black>=23.0.0
+# flake8>=6.0.0
+# mypy>=1.5.0
+# pytest-cov>=4.1.0
+
+# Production dependencies (optional)
+# Uncomment for production environment
+# gunicorn>=21.2.0
+# prometheus-client>=0.17.0
+# sentry-sdk[fastapi]>=1.32.0 

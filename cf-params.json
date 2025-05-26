@@ -1,0 +1,22 @@
+[
+  {
+    "ParameterKey": "ProjectName",
+    "ParameterValue": "genai-tweets-digest"
+  },
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "production"
+  },
+  {
+    "ParameterKey": "TwitterBearerToken",
+    "ParameterValue": "AAAAAAAAAAAAAAAAAAAAAJQF2AEAAAAA73znMuRBe0FRYn%2BL5q2XXowHDyQ%3DlPkdvPP93OdMJsyLVvZM9upItwwrF7wyyupwKWNbsjpPXmmdzb"
+  },
+  {
+    "ParameterKey": "GeminiApiKey",
+    "ParameterValue": "AIzaSyBHnM7AzBD4vZ6RbeXb5qmKseomUs6v1sI"
+  },
+  {
+    "ParameterKey": "FromEmail",
+    "ParameterValue": "noreply@example.com"
+  }
+] 

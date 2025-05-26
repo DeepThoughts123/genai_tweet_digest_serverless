@@ -1,0 +1,8 @@
+{
+  "influential_accounts": [
+    "OpenAI" 
+  ],
+  "description": "Curated list of influential Twitter accounts in the GenAI space - TEST SINGLE",
+  "last_updated": "2025-05-26",
+  "notes": "Testing with a single account to isolate and test downstream processes."
+} 
