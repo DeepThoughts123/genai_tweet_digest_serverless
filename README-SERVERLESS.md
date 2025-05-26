@@ -162,6 +162,22 @@ ScheduleExpression: "cron(0 9 ? * SUN *)"  # Every Sunday at 9 AM UTC
 
 ## 🧪 Testing
 
+This project includes a suite of local unit tests and integration tests. For comprehensive details on testing procedures, including the Python import strategy for local unit tests vs. Lambda deployment, please refer to the **[Testing Guide](docs/TESTING_GUIDE.md)**.
+
+To run local unit tests for the backend Lambda functions:
+```bash
+# Ensure you have activated the virtual environment and installed dependencies
+# (see Prerequisites and docs/DEVELOPMENT_SETUP.md)
+./scripts/run-unit-tests.sh
+```
+
+To run local frontend development server and tests:
+```bash
+cd frontend
+npm run dev
+# (Refer to docs/FRONTEND_TESTING_GUIDE.md for more details)
+```
+
 ### Test Subscription with Email Verification
 
 ```bash
@@ -194,7 +210,7 @@ curl -X POST $API_URL \
 **Note**: You need to verify your sender email in SES first:
 ```bash
 export AWS_PROFILE=personal
-aws ses verify-email-identity --email-address your-sender@domain.com --region us-east-1
+aws ses verify-email-identity --email-address your-sender@domain.com
 ```
 
 ### Test Weekly Digest (Adhoc Run)

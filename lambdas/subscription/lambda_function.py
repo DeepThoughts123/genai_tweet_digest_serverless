@@ -6,6 +6,7 @@ Triggered by API Gateway POST requests.
 import json
 import sys
 import os
+import traceback
 
 # Add the shared directory to the Python path
 # sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'shared')) # Removed for Lambda packaging
@@ -151,6 +152,7 @@ def lambda_handler(event, context):
     
     except Exception as e:
         print(f"Error in subscription handler: {str(e)}")
+        traceback.print_exc()
         return {
             'statusCode': 500,
             'headers': headers,

@@ -212,11 +212,15 @@ curl "https://api-url/verify?token=your-verification-token"
 ### Common Issues
 
 1. **Import Errors in Tests**
-   ```bash
-   # Ensure you're in the lambdas directory
-   cd lambdas
-   python -m pytest tests/
-   ```
+   - **Symptom**: `ModuleNotFoundError`, `ImportError: attempted relative import with no known parent package`, etc., during unit tests.
+   - **Solution**: This project uses a specific Python import strategy to balance local testability with AWS Lambda deployment requirements.
+     - Ensure unit tests are run via `./scripts/run-unit-tests.sh`. This script handles setting the correct Current Working Directory (`lambdas/`) and relies on `sys.path` modifications within test files (`lambdas/tests/test_lambda_functions.py`) for proper module resolution.
+     - Refer to the "Python Import Strategy for Local Testing and Lambda Deployment" section in `docs/TESTING_GUIDE.md` for a detailed explanation of the import patterns and test setup.
+   - **Quick Check Command from `lambdas/` directory** (if `run-unit-tests.sh` is not used):
+     ```bash
+     # From project_root/lambdas/ directory:
+     python -m unittest tests.test_your_module -v
+     ```
 
 2. **AWS Credentials Issues**
    ```bash

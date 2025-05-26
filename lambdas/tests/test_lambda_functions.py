@@ -9,255 +9,194 @@ import json
 import sys
 import os
 
-# Add the Lambda function directories to the Python path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'subscription'))
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'weekly-digest'))
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'shared'))
+# Add the shared directory to sys.path for the handlers to find it
+# CWD for tests run via run-unit-tests.sh will be lambdas/
+base_dir = os.path.dirname(__file__) # lambdas/tests
+# sys.path.insert(0, os.path.join(base_dir, '..')) # Add lambdas/ to sys.path (already there due to CWD)
+sys.path.insert(0, os.path.join(base_dir, '..', 'shared')) # Add lambdas/shared
+sys.path.insert(0, os.path.join(base_dir, '..', 'subscription')) # Add lambdas/subscription
+sys.path.insert(0, os.path.join(base_dir, '..', 'weekly-digest'))
+sys.path.insert(0, os.path.join(base_dir, '..', 'email-verification'))
+sys.path.insert(0, os.path.join(base_dir, '..', 'unsubscribe'))
+
+from subscription.lambda_function import lambda_handler, get_subscriber_count_handler # MODIFIED
+# For TestWeeklyDigestLambda, it dynamically imports its lambda_function, which should now work if it uses 'from shared...'
 
 class TestSubscriptionLambda(unittest.TestCase):
     """Test the subscription Lambda function."""
     
     def setUp(self):
         """Set up test fixtures."""
-        # Mock the config module before importing lambda_function
-        self.config_patcher = patch('lambda_function.config')
-        self.mock_config = self.config_patcher.start()
-        self.mock_config.validate_required_env_vars.return_value = True
-        
-        # Import after patching
-        global lambda_function
-        import lambda_function
-        self.lambda_function = lambda_function
+        self.config_patcher = patch('subscription.lambda_function.config') # MODIFIED
+        self.mock_config_module = self.config_patcher.start()
+        self.mock_config_module.validate_required_env_vars.return_value = True
+        self.mock_config_module.subscribers_table = 'fake-table'
+        self.mock_config_module.aws_region = 'us-east-1'
+        self.mock_config_module.from_email = 'test@example.com'
+        self.mock_config_module.get_api_base_url.return_value = 'https://api.example.com'
+        self.mock_config_module.dynamodb = Mock()
+        self.mock_config_module.ses_client = Mock()
+
+        self.ev_service_patcher = patch('subscription.lambda_function.EmailVerificationService') # MODIFIED
+        self.MockEmailVerificationService = self.ev_service_patcher.start()
+        self.mock_ev_instance = self.MockEmailVerificationService.return_value
+
+        self.sub_service_patcher = patch('subscription.lambda_function.SubscriberService') # MODIFIED
+        self.MockSubscriberService = self.sub_service_patcher.start()
+        self.mock_sub_instance = self.MockSubscriberService.return_value
     
     def tearDown(self):
         """Clean up patches."""
         self.config_patcher.stop()
+        self.ev_service_patcher.stop()
+        self.sub_service_patcher.stop()
     
-    @patch('lambda_function.SubscriberService')
-    def test_subscription_success(self, mock_subscriber_service_class):
-        """Test successful email subscription."""
-        # Mock SubscriberService
-        mock_service = Mock()
-        mock_service.add_subscriber.return_value = {
+    def test_subscription_success(self):
+        self.mock_sub_instance.get_subscriber_by_email.return_value = None
+        self.mock_ev_instance.create_pending_subscriber.return_value = {
             'success': True,
-            'subscriber_id': 'test-id-123'
+            'message': 'Verification email sent. Please check your inbox.',
+            'subscriber_id': 'test-subscriber-id'
         }
-        mock_subscriber_service_class.return_value = mock_service
-        
-        # Test event
-        event = {
-            'httpMethod': 'POST',
-            'body': json.dumps({'email': 'test@example.com'})
-        }
-        context = {}
-        
-        # Test
-        response = self.lambda_function.lambda_handler(event, context)
-        
-        # Assertions
+        event_data = {'body': json.dumps({'email': 'test@example.com'}), 'httpMethod': 'POST'}
+        response = lambda_handler(event_data, None)
         self.assertEqual(response['statusCode'], 201)
         body = json.loads(response['body'])
         self.assertTrue(body['success'])
-        self.assertIn('subscriber_id', body)
+        self.assertEqual(body['subscriber_id'], 'test-subscriber-id')
     
-    @patch('lambda_function.SubscriberService')
-    def test_subscription_duplicate_email(self, mock_subscriber_service_class):
-        """Test subscription with duplicate email."""
-        # Mock SubscriberService
-        mock_service = Mock()
-        mock_service.add_subscriber.return_value = {
-            'success': False,
-            'message': 'Email already subscribed'
+    def test_subscription_duplicate_email(self):
+        self.mock_sub_instance.get_subscriber_by_email.return_value = {
+            'status': 'active', 'email': 'test@example.com', 'subscriber_id': 'prev-id'
         }
-        mock_subscriber_service_class.return_value = mock_service
-        
-        # Test event
-        event = {
-            'httpMethod': 'POST',
-            'body': json.dumps({'email': 'existing@example.com'})
-        }
-        context = {}
-        
-        # Test
-        response = self.lambda_function.lambda_handler(event, context)
-        
-        # Assertions
+        event_data = {'body': json.dumps({'email': 'test@example.com'}), 'httpMethod': 'POST'}
+        response = lambda_handler(event_data, None)
         self.assertEqual(response['statusCode'], 409)
         body = json.loads(response['body'])
         self.assertFalse(body['success'])
-    
-    def test_subscription_invalid_email(self):
-        """Test subscription with invalid email."""
-        # Test event
-        event = {
-            'httpMethod': 'POST',
-            'body': json.dumps({'email': 'invalid-email'})
+        self.assertIn('Email already subscribed', body['message'])
+
+        self.mock_sub_instance.reset_mock() # Reset for next part of test
+        self.mock_ev_instance.reset_mock()
+        self.mock_sub_instance.get_subscriber_by_email.return_value = {
+            'status': 'pending_verification', 'email': 'pending@example.com', 'subscriber_id': 'pending-id'
         }
-        context = {}
-        
-        # Test
-        response = self.lambda_function.lambda_handler(event, context)
-        
-        # Assertions
-        self.assertEqual(response['statusCode'], 400)
-        body = json.loads(response['body'])
-        self.assertFalse(body['success'])
-        self.assertIn('Invalid email format', body['message'])
-    
-    def test_subscription_missing_body(self):
-        """Test subscription with missing request body."""
-        # Test event
-        event = {
-            'httpMethod': 'POST'
+        self.mock_ev_instance.resend_verification.return_value = {
+            'success': True,
+            'message': 'Verification email resent. Please check your inbox.'
         }
-        context = {}
-        
-        # Test
-        response = self.lambda_function.lambda_handler(event, context)
-        
-        # Assertions
-        self.assertEqual(response['statusCode'], 400)
-        body = json.loads(response['body'])
-        self.assertFalse(body['success'])
-        self.assertIn('Request body is required', body['message'])
-    
-    def test_subscription_invalid_json(self):
-        """Test subscription with invalid JSON."""
-        # Test event
-        event = {
-            'httpMethod': 'POST',
-            'body': 'invalid json'
-        }
-        context = {}
-        
-        # Test
-        response = self.lambda_function.lambda_handler(event, context)
-        
-        # Assertions
-        self.assertEqual(response['statusCode'], 400)
-        body = json.loads(response['body'])
-        self.assertFalse(body['success'])
-        self.assertIn('Invalid JSON', body['message'])
-    
-    def test_options_request(self):
-        """Test CORS preflight OPTIONS request."""
-        # Test event
-        event = {
-            'httpMethod': 'OPTIONS'
-        }
-        context = {}
-        
-        # Test
-        response = self.lambda_function.lambda_handler(event, context)
-        
-        # Assertions
-        self.assertEqual(response['statusCode'], 200)
-        self.assertIn('Access-Control-Allow-Origin', response['headers'])
-    
-    def test_config_validation_failure(self):
-        """Test handling of configuration validation failure."""
-        # Mock config validation failure
-        self.mock_config.validate_required_env_vars.return_value = False
-        
-        # Test event
-        event = {
-            'httpMethod': 'POST',
-            'body': json.dumps({'email': 'test@example.com'})
-        }
-        context = {}
-        
-        # Test
-        response = self.lambda_function.lambda_handler(event, context)
-        
-        # Assertions
-        self.assertEqual(response['statusCode'], 500)
-        body = json.loads(response['body'])
-        self.assertFalse(body['success'])
-        self.assertIn('Server configuration error', body['message'])
-    
-    @patch('lambda_function.SubscriberService')
-    def test_get_subscriber_count(self, mock_subscriber_service_class):
-        """Test get subscriber count handler."""
-        # Mock SubscriberService
-        mock_service = Mock()
-        mock_service.get_subscriber_count.return_value = 42
-        mock_subscriber_service_class.return_value = mock_service
-        
-        # Test event
-        event = {
-            'httpMethod': 'GET'
-        }
-        context = {}
-        
-        # Test
-        response = self.lambda_function.get_subscriber_count_handler(event, context)
-        
-        # Assertions
+        event_data = {'body': json.dumps({'email': 'pending@example.com'}), 'httpMethod': 'POST'}
+        response = lambda_handler(event_data, None)
         self.assertEqual(response['statusCode'], 200)
         body = json.loads(response['body'])
         self.assertTrue(body['success'])
-        self.assertEqual(body['subscriber_count'], 42)
+        self.assertIn('Verification email resent', body['message'])
+        self.mock_ev_instance.resend_verification.assert_called_once_with('pending@example.com')
+    
+    def test_subscription_invalid_email(self):
+        event_data = {'body': json.dumps({'email': 'invalid-email'}), 'httpMethod': 'POST'}
+        response = lambda_handler(event_data, None)
+        self.assertEqual(response['statusCode'], 400)
+        body = json.loads(response['body'])
+        self.assertFalse(body['success'])
+        self.assertEqual(body['message'], 'Invalid email format')
+    
+    def test_subscription_missing_body(self):
+        event_data = {'httpMethod': 'POST'}
+        response = lambda_handler(event_data, None)
+        self.assertEqual(response['statusCode'], 400)
+        body = json.loads(response['body'])
+        self.assertFalse(body['success'])
+        self.assertEqual(body['message'], 'Request body is required')
+    
+    def test_subscription_invalid_json(self):
+        event_data = {'body': 'not a json', 'httpMethod': 'POST'}
+        response = lambda_handler(event_data, None)
+        self.assertEqual(response['statusCode'], 400)
+        body = json.loads(response['body'])
+        self.assertFalse(body['success'])
+        self.assertEqual(body['message'], 'Invalid JSON in request body')
+    
+    def test_options_request(self):
+        event_data = {'httpMethod': 'OPTIONS'}
+        response = lambda_handler(event_data, None)
+        self.assertEqual(response['statusCode'], 200)
+        body = json.loads(response['body'])
+        self.assertEqual(body['message'], 'CORS preflight')
+    
+    def test_config_validation_failure(self):
+        self.mock_config_module.validate_required_env_vars.return_value = False
+        event_data = {'body': json.dumps({'email': 'test@example.com'}), 'httpMethod': 'POST'}
+        response = lambda_handler(event_data, None)
+        self.assertEqual(response['statusCode'], 500)
+        body = json.loads(response['body'])
+        self.assertFalse(body['success'])
+        self.assertEqual(body['message'], 'Server configuration error')
+        self.mock_config_module.validate_required_env_vars.return_value = True
+    
+    def test_get_subscriber_count(self):
+        self.mock_sub_instance.get_subscriber_count.return_value = 123
+        event_data = {'httpMethod': 'GET', 'path': '/subscribers/count'} 
+        response = get_subscriber_count_handler(event_data, None)
+        self.assertEqual(response['statusCode'], 200)
+        body = json.loads(response['body'])
+        self.assertTrue(body['success'])
+        self.assertEqual(body['subscriber_count'], 123)
 
 class TestWeeklyDigestLambda(unittest.TestCase):
     """Test the weekly digest Lambda function."""
     
     def setUp(self):
         """Set up test fixtures."""
-        # Clear any existing lambda_function imports
-        import importlib
-        modules_to_clear = [
-            'lambda_function',
-            'weekly_digest_lambda_function'
-        ]
-        for module in modules_to_clear:
-            if module in sys.modules:
-                del sys.modules[module]
-        
-        # Import weekly digest lambda function directly from its path
         import importlib.util
-        weekly_digest_path = os.path.join(os.path.dirname(__file__), '..', 'weekly-digest', 'lambda_function.py')
-        spec = importlib.util.spec_from_file_location("weekly_digest_lambda_function", weekly_digest_path)
-        weekly_lambda_function = importlib.util.module_from_spec(spec)
-        sys.modules["weekly_digest_lambda_function"] = weekly_lambda_function
-        spec.loader.exec_module(weekly_lambda_function)
+        weekly_digest_module_path = os.path.join('weekly-digest', 'lambda_function.py')
+        spec = importlib.util.spec_from_file_location("weekly_digest_lambda_module", weekly_digest_module_path)
+        self.weekly_digest_lambda_module = importlib.util.module_from_spec(spec)
+        sys.modules["weekly_digest_lambda_module"] = self.weekly_digest_lambda_module
+        spec.loader.exec_module(self.weekly_digest_lambda_module)
         
-        self.lambda_function = weekly_lambda_function
-        
-        # Mock the config module after importing lambda_function
-        self.config_patcher = patch.object(weekly_lambda_function, 'config')
+        self.config_patcher = patch.object(self.weekly_digest_lambda_module, 'config')
         self.mock_config = self.config_patcher.start()
         self.mock_config.validate_required_env_vars.return_value = True
         self.mock_config.get_influential_accounts.return_value = ['testuser1', 'testuser2']
+
+        # Patch services using patch.object
+        self.fetcher_patcher = patch.object(self.weekly_digest_lambda_module, 'TweetFetcher')
+        self.MockTweetFetcher = self.fetcher_patcher.start()
+        self.categorizer_patcher = patch.object(self.weekly_digest_lambda_module, 'TweetCategorizer')
+        self.MockTweetCategorizer = self.categorizer_patcher.start()
+        self.summarizer_patcher = patch.object(self.weekly_digest_lambda_module, 'TweetSummarizer')
+        self.MockTweetSummarizer = self.summarizer_patcher.start()
+        self.subscriber_patcher = patch.object(self.weekly_digest_lambda_module, 'SubscriberService')
+        self.MockSubscriberService = self.subscriber_patcher.start()
+        self.ses_patcher = patch.object(self.weekly_digest_lambda_module, 'SESEmailService')
+        self.MockSESEmailService = self.ses_patcher.start()
+        self.s3_patcher = patch.object(self.weekly_digest_lambda_module, 'S3DataManager')
+        self.MockS3DataManager = self.s3_patcher.start()
     
     def tearDown(self):
-        """Clean up patches."""
         self.config_patcher.stop()
+        self.fetcher_patcher.stop()
+        self.categorizer_patcher.stop()
+        self.summarizer_patcher.stop()
+        self.subscriber_patcher.stop()
+        self.ses_patcher.stop()
+        self.s3_patcher.stop()
     
-    @patch('weekly_digest_lambda_function.TweetFetcher')
-    @patch('weekly_digest_lambda_function.TweetCategorizer')
-    @patch('weekly_digest_lambda_function.TweetSummarizer')
-    @patch('weekly_digest_lambda_function.SubscriberService')
-    @patch('weekly_digest_lambda_function.SESEmailService')
-    @patch('weekly_digest_lambda_function.S3DataManager')
-    def test_weekly_digest_success(self, mock_s3, mock_email, mock_subscriber, 
-                                   mock_summarizer, mock_categorizer, mock_fetcher):
-        """Test successful weekly digest generation."""
-        # Mock services
-        mock_fetcher_instance = Mock()
+    def test_weekly_digest_success(self):
+        mock_fetcher_instance = self.MockTweetFetcher.return_value
         mock_fetcher_instance.fetch_tweets.return_value = [
             {'id': 'tweet1', 'text': 'Test tweet 1'},
             {'id': 'tweet2', 'text': 'Test tweet 2'}
         ]
-        mock_fetcher.return_value = mock_fetcher_instance
         
-        mock_categorizer_instance = Mock()
+        mock_categorizer_instance = self.MockTweetCategorizer.return_value
         mock_categorizer_instance.categorize_tweets.return_value = [
             {'id': 'tweet1', 'text': 'Test tweet 1', 'category': 'New AI model releases'},
             {'id': 'tweet2', 'text': 'Test tweet 2', 'category': 'Tools and resources'}
         ]
-        mock_categorizer.return_value = mock_categorizer_instance
         
-        mock_summarizer_instance = Mock()
+        mock_summarizer_instance = self.MockTweetSummarizer.return_value
         mock_summarizer_instance.summarize_tweets.return_value = {
             'summaries': {
                 'New AI model releases': {'summary': 'Test summary', 'tweet_count': 1},
@@ -266,160 +205,100 @@ class TestWeeklyDigestLambda(unittest.TestCase):
             'total_tweets': 2,
             'generated_at': '2024-01-01T00:00:00'
         }
-        mock_summarizer.return_value = mock_summarizer_instance
         
-        mock_subscriber_instance = Mock()
+        mock_subscriber_instance = self.MockSubscriberService.return_value
         mock_subscriber_instance.get_all_active_subscribers.return_value = ['test@example.com']
-        mock_subscriber.return_value = mock_subscriber_instance
         
-        mock_email_instance = Mock()
+        mock_email_instance = self.MockSESEmailService.return_value
         mock_email_instance.send_digest_email.return_value = {
             'success': True,
             'emails_sent': 1,
             'failed_emails': []
         }
-        mock_email.return_value = mock_email_instance
         
-        mock_s3_instance = Mock()
+        mock_s3_instance = self.MockS3DataManager.return_value
         mock_s3_instance.save_tweets.return_value = 'tweets/digests/test_digest.json'
-        mock_s3.return_value = mock_s3_instance
         
-        # Test event
         event = {}
         context = {}
-        
-        # Test
-        response = self.lambda_function.lambda_handler(event, context)
-        
-        # Assertions
+        response = self.weekly_digest_lambda_module.lambda_handler(event, context)
         self.assertEqual(response['statusCode'], 200)
         body = json.loads(response['body'])
         self.assertEqual(body['status'], 'success')
         self.assertEqual(body['tweets_processed'], 2)
         self.assertEqual(body['categories_generated'], 2)
     
-    @patch('weekly_digest_lambda_function.TweetFetcher')
-    def test_weekly_digest_no_tweets(self, mock_fetcher):
-        """Test weekly digest when no tweets are fetched."""
-        # Mock empty tweet response
-        mock_fetcher_instance = Mock()
+    def test_weekly_digest_no_tweets(self):
+        mock_fetcher_instance = self.MockTweetFetcher.return_value
         mock_fetcher_instance.fetch_tweets.return_value = []
-        mock_fetcher.return_value = mock_fetcher_instance
-        
-        # Test event
         event = {}
         context = {}
-        
-        # Test
-        response = self.lambda_function.lambda_handler(event, context)
-        
-        # Assertions
+        response = self.weekly_digest_lambda_module.lambda_handler(event, context)
         self.assertEqual(response['statusCode'], 200)
         body = json.loads(response['body'])
         self.assertEqual(body['status'], 'skipped')
         self.assertEqual(body['reason'], 'no_tweets')
     
-    @patch('weekly_digest_lambda_function.TweetFetcher')
-    @patch('weekly_digest_lambda_function.TweetCategorizer')
-    @patch('weekly_digest_lambda_function.TweetSummarizer')
-    @patch('weekly_digest_lambda_function.SubscriberService')
-    @patch('weekly_digest_lambda_function.S3DataManager')
-    def test_weekly_digest_no_subscribers(self, mock_s3, mock_subscriber, 
-                                          mock_summarizer, mock_categorizer, mock_fetcher):
-        """Test weekly digest when no subscribers exist."""
-        # Mock services
-        mock_fetcher_instance = Mock()
+    def test_weekly_digest_no_subscribers(self):
+        mock_fetcher_instance = self.MockTweetFetcher.return_value
         mock_fetcher_instance.fetch_tweets.return_value = [{'id': 'tweet1', 'text': 'Test'}]
-        mock_fetcher.return_value = mock_fetcher_instance
         
-        mock_categorizer_instance = Mock()
+        mock_categorizer_instance = self.MockTweetCategorizer.return_value
         mock_categorizer_instance.categorize_tweets.return_value = [
             {'id': 'tweet1', 'text': 'Test', 'category': 'Tools and resources'}
         ]
-        mock_categorizer.return_value = mock_categorizer_instance
         
-        mock_summarizer_instance = Mock()
+        mock_summarizer_instance = self.MockTweetSummarizer.return_value
         mock_summarizer_instance.summarize_tweets.return_value = {
             'summaries': {'Tools and resources': {'summary': 'Test', 'tweet_count': 1}},
             'total_tweets': 1
         }
-        mock_summarizer.return_value = mock_summarizer_instance
         
-        mock_subscriber_instance = Mock()
+        mock_subscriber_instance = self.MockSubscriberService.return_value
         mock_subscriber_instance.get_all_active_subscribers.return_value = []
-        mock_subscriber.return_value = mock_subscriber_instance
         
-        mock_s3_instance = Mock()
+        mock_s3_instance = self.MockS3DataManager.return_value
         mock_s3_instance.save_tweets.return_value = 'tweets/digests/test_digest.json'
-        mock_s3.return_value = mock_s3_instance
         
-        # Test event
         event = {}
         context = {}
-        
-        # Test
-        response = self.lambda_function.lambda_handler(event, context)
-        
-        # Assertions
+        response = self.weekly_digest_lambda_module.lambda_handler(event, context)
         self.assertEqual(response['statusCode'], 200)
         body = json.loads(response['body'])
         self.assertEqual(body['status'], 'completed_no_subscribers')
         self.assertEqual(body['subscribers'], 0)
     
     def test_config_validation_failure(self):
-        """Test handling of configuration validation failure."""
-        # Mock config validation failure
         self.mock_config.validate_required_env_vars.return_value = False
-        
-        # Test event
         event = {}
         context = {}
-        
-        # Test
-        response = self.lambda_function.lambda_handler(event, context)
-        
-        # Assertions
+        response = self.weekly_digest_lambda_module.lambda_handler(event, context)
         self.assertEqual(response['statusCode'], 500)
         body = json.loads(response['body'])
         self.assertEqual(body['status'], 'error')
         self.assertIn('Missing required environment variables', body['error'])
-    
-    @patch('weekly_digest_lambda_function.TweetFetcher')
-    def test_weekly_digest_exception_handling(self, mock_fetcher):
-        """Test exception handling in weekly digest."""
-        # Mock exception
-        mock_fetcher.side_effect = Exception("Test error")
-        
-        # Test event
+        self.mock_config.validate_required_env_vars.return_value = True # Reset
+
+    def test_weekly_digest_exception_handling(self):
+        # Mock exception on TweetFetcher, for example
+        self.MockTweetFetcher.return_value.fetch_tweets.side_effect = Exception("Test error")
         event = {}
         context = {}
-        
-        # Test
-        response = self.lambda_function.lambda_handler(event, context)
-        
-        # Assertions
+        response = self.weekly_digest_lambda_module.lambda_handler(event, context)
         self.assertEqual(response['statusCode'], 500)
         body = json.loads(response['body'])
         self.assertEqual(body['status'], 'error')
         self.assertIn('Test error', body['error'])
     
     def test_manual_trigger_handler(self):
-        """Test manual trigger handler."""
-        # Mock the lambda_handler function within the same module
-        with patch.object(self.lambda_function, 'lambda_handler') as mock_main_handler:
+        with patch.object(self.weekly_digest_lambda_module, 'lambda_handler') as mock_main_handler:
             mock_main_handler.return_value = {
                 'statusCode': 200,
                 'body': json.dumps({'status': 'success'})
             }
-            
-            # Test event
             event = {}
             context = {}
-            
-            # Test
-            response = self.lambda_function.manual_trigger_handler(event, context)
-            
-            # Assertions
+            response = self.weekly_digest_lambda_module.manual_trigger_handler(event, context)
             self.assertEqual(response['statusCode'], 200)
             body = json.loads(response['body'])
             self.assertEqual(body['trigger_type'], 'manual')

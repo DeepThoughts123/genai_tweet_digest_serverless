@@ -9,6 +9,9 @@ import json
 import re
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
+from tweepy.auth import OAuthHandler
+from tweepy.errors import TweepyException
+import logging
 from .config import config
 
 class TweetFetcher:

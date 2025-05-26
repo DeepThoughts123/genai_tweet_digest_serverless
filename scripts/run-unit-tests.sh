@@ -15,26 +15,31 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}🧪 Running Unit Tests for Serverless Lambda Functions${NC}"
 echo ""
 
-# Check if we're in the right directory
+# Check if we're in the right directory (project root)
 if [ ! -d "lambdas" ]; then
     echo -e "${RED}❌ Error: lambdas directory not found. Please run this from the project root.${NC}"
     exit 1
 fi
 
-# Create test results directory
+# Change to lambdas directory for test execution
+cd lambdas
+echo -e "${YELLOW}Changed current directory to $(pwd) for test execution.${NC}"
+echo ""
+
+
+# Create test results directory (relative to lambdas dir, e.g. lambdas/test-results)
 mkdir -p test-results
 
-# Function to run tests with coverage
+# Function to run tests with coverage (not currently used by default)
 run_tests() {
     local test_file="$1"
     local test_name="$2"
     
     echo -e "${YELLOW}Running $test_name...${NC}"
     
-    cd lambdas
-    
+    # Assumes CWD is lambdas/
     # Install test dependencies if not already installed
-    if [ ! -f ".test_deps_installed" ]; then
+    if [ ! -f ".test_deps_installed" ]; then # .test_deps_installed will be in lambdas/
         echo "Installing test dependencies..."
         pip install pytest pytest-cov coverage > /dev/null 2>&1
         touch .test_deps_installed
@@ -43,32 +48,27 @@ run_tests() {
     # Run the specific test
     if python -m pytest "$test_file" -v --tb=short; then
         echo -e "${GREEN}✅ $test_name passed${NC}"
-        cd ..
         return 0
     else
         echo -e "${RED}❌ $test_name failed${NC}"
-        cd ..
         return 1
     fi
 }
 
 # Function to run tests with unittest
 run_unittest() {
-    local test_file="$1"
+    local test_module_path="$1" # e.g., tests.test_tweet_services (relative to lambdas/)
     local test_name="$2"
     
     echo -e "${YELLOW}Running $test_name...${NC}"
     
-    cd lambdas
-    
-    # Run the specific test
-    if python -m unittest "$test_file" -v; then
+    # CWD is lambdas/
+    # Python's -m flag will search sys.path, which includes '.' (current dir)
+    if python -m unittest "$test_module_path" -v; then
         echo -e "${GREEN}✅ $test_name passed${NC}"
-        cd ..
         return 0
     else
         echo -e "${RED}❌ $test_name failed${NC}"
-        cd ..
         return 1
     fi
 }
@@ -80,7 +80,7 @@ FAILED_TESTS=()
 
 # Test 1: Tweet Services Unit Tests
 echo -e "${BLUE}📋 Testing Tweet Processing Services${NC}"
-if run_unittest "tests.test_tweet_services" "Tweet Services"; then
+if run_unittest "tests.test_tweet_services" "Tweet Services"; then # Path relative to lambdas/
     ((TESTS_PASSED++))
 else
     ((TESTS_FAILED++))
@@ -90,7 +90,7 @@ echo ""
 
 # Test 2: Lambda Functions Unit Tests
 echo -e "${BLUE}⚡ Testing Lambda Function Handlers${NC}"
-if run_unittest "tests.test_lambda_functions" "Lambda Functions"; then
+if run_unittest "tests.test_lambda_functions" "Lambda Functions"; then # Path relative to lambdas/
     ((TESTS_PASSED++))
 else
     ((TESTS_FAILED++))
@@ -98,29 +98,29 @@ else
 fi
 echo ""
 
-# Test 3: Configuration Tests
+# Test 3: Configuration Tests (CWD is lambdas/)
 echo -e "${BLUE}⚙️  Testing Configuration Module${NC}"
-cd lambdas
 if python -c "
 import sys
 import os
-sys.path.append('shared')
-from config import LambdaConfig
+# Add 'shared' to sys.path (it's a subdir of current dir 'lambdas')
+sys.path.insert(0, os.path.abspath('shared')) 
+# sys.path.insert(0, os.path.abspath('.')) # Current dir 'lambdas' is already on path with -m
+
+from config import LambdaConfig # Should find shared/config.py
 
 # Test basic configuration
 try:
-    config = LambdaConfig()
+    config_obj = LambdaConfig() # Renamed to avoid conflict with module
     print('✅ Configuration module loads successfully')
     
-    # Test environment detection
-    if hasattr(config, 'environment'):
+    if hasattr(config_obj, 'environment'):
         print('✅ Environment detection works')
     else:
         print('❌ Environment detection missing')
         exit(1)
         
-    # Test required methods
-    if hasattr(config, 'validate_required_env_vars'):
+    if hasattr(config_obj, 'validate_required_env_vars'):
         print('✅ Validation method exists')
     else:
         print('❌ Validation method missing')
@@ -138,34 +138,34 @@ else
     ((TESTS_FAILED++))
     FAILED_TESTS+=("Configuration")
 fi
-cd ..
 echo ""
 
-# Test 4: Import Tests
+# Test 4: Import Tests (CWD is lambdas/)
 echo -e "${BLUE}📦 Testing Module Imports${NC}"
-cd lambdas
 if python -c "
 import sys
 import os
-sys.path.append('shared')
+# CWD is lambdas/, which should be on sys.path implicitly when python -c is run.
+# Ensure 'shared' can be imported as a package and its modules.
 
-# Test all imports
 modules_to_test = [
-    'config',
-    'tweet_services', 
-    'dynamodb_service',
-    'ses_service'
+    'shared.config',            # Test import shared.config
+    'shared.tweet_services',    # Test import shared.tweet_services (will test its internal .config)
+    'shared.dynamodb_service',  # Test import shared.dynamodb_service (will test its internal .config)
+    'shared.ses_service',         # Test import shared.ses_service (will test its internal .config, .unsubscribe_service)
+    'shared.email_verification_service',
+    'shared.unsubscribe_service' # Test import shared.unsubscribe_service (will test its internal .config, .dynamodb_service)
 ]
 
 failed_imports = []
 
-for module in modules_to_test:
+for module_name in modules_to_test:
     try:
-        __import__(module)
-        print(f'✅ {module} imports successfully')
+        __import__(module_name)
+        print(f'✅ {module_name} imports successfully')
     except Exception as e:
-        print(f'❌ {module} import failed: {e}')
-        failed_imports.append(module)
+        print(f'❌ {module_name} import failed: {e}')
+        failed_imports.append(module_name)
 
 if failed_imports:
     print(f'❌ Failed to import: {failed_imports}')
@@ -180,18 +180,17 @@ else
     ((TESTS_FAILED++))
     FAILED_TESTS+=("Imports")
 fi
-cd ..
 echo ""
 
-# Test 5: JSON Configuration Tests
+# Test 5: JSON Configuration Tests (CWD is lambdas/)
 echo -e "${BLUE}📄 Testing JSON Configuration Files${NC}"
 if python -c "
 import json
 import os
 
-# Test accounts.json
+# Test accounts.json (path is now ../data/accounts.json)
 try:
-    with open('data/accounts.json', 'r') as f:
+    with open('../data/accounts.json', 'r') as f: # Adjusted path
         accounts_data = json.load(f)
     
     if 'influential_accounts' in accounts_data:
@@ -209,10 +208,10 @@ try:
         exit(1)
         
 except FileNotFoundError:
-    print('❌ accounts.json not found')
+    print('❌ ../data/accounts.json not found') # Adjusted path in message
     exit(1)
 except json.JSONDecodeError as e:
-    print(f'❌ accounts.json is invalid JSON: {e}')
+    print(f'❌ ../data/accounts.json is invalid JSON: {e}') # Adjusted path in message
     exit(1)
 
 print('✅ JSON configuration tests passed')
@@ -226,14 +225,14 @@ else
 fi
 echo ""
 
-# Test 6: Requirements Tests
+# Test 6: Requirements Tests (CWD is lambdas/)
 echo -e "${BLUE}📋 Testing Requirements File${NC}"
 if python -c "
 import os
 
-# Check if requirements.txt exists and is valid
+# Check if requirements.txt exists (path is now 'requirements.txt')
 try:
-    with open('lambdas/requirements.txt', 'r') as f:
+    with open('requirements.txt', 'r') as f: # Adjusted path
         requirements = f.read().strip().split('\n')
     
     required_packages = ['boto3', 'tweepy', 'google-generativeai', 'botocore']
@@ -249,7 +248,7 @@ try:
     print('✅ Requirements file is valid')
     
 except FileNotFoundError:
-    print('❌ requirements.txt not found')
+    print('❌ requirements.txt not found in lambdas/ directory') # Adjusted message
     exit(1)
 "; then
     echo -e "${GREEN}✅ Requirements tests passed${NC}"
@@ -260,6 +259,11 @@ else
     FAILED_TESTS+=("Requirements")
 fi
 echo ""
+
+# Go back to project root before finishing
+cd ..
+echo -e "${YELLOW}Changed current directory back to $(pwd).${NC}"
+
 
 # Summary
 echo -e "${BLUE}📊 Unit Test Summary${NC}"
@@ -275,9 +279,9 @@ if [ $TESTS_FAILED -gt 0 ]; then
     echo ""
     echo -e "${YELLOW}💡 Troubleshooting tips:${NC}"
     echo "1. Ensure all dependencies are installed: pip install -r lambdas/requirements.txt"
-    echo "2. Check Python path and module imports"
-    echo "3. Verify JSON configuration files are valid"
-    echo "4. Run individual tests for more detailed error messages"
+    echo "2. Check Python path and module imports from within the 'lambdas' directory context."
+    echo "3. Verify JSON configuration files are valid and paths are correct relative to 'lambdas/'."
+    echo "4. Run individual tests for more detailed error messages (e.g., python -m unittest tests.test_module -v from 'lambdas/' dir)."
     exit 1
 else
     echo ""

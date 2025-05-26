@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.0] - YYYY-MM-DD - Unit Test Refinements & Import Strategy
+
+### ✅ **Testing & Quality**
+- **Resolved All Backend Unit Test Failures**: Addressed all previously failing Python unit tests, ensuring a clean test run via `./scripts/run-unit-tests.sh`.
+- **Refined Python Import Strategy**: Standardized Python imports for compatibility between local testing (`unittest`) and AWS Lambda deployment. This involved:
+    - Updating `scripts/run-unit-tests.sh` to change CWD to `lambdas/` for test execution.
+    - Modifying source code (Lambda handlers and shared modules) to use Lambda-compatible imports (`from shared...` and `from .sibling...`).
+    - Adjusting test files (`lambdas/tests/*`) to correctly import and patch modules based on the new test execution context.
+    - Ensuring `__init__.py` files are present in all package directories (`lambdas`, `lambdas/shared`, `lambdas/tests`, etc.).
+- **Improved Mocking in Unit Tests**: Corrected mock object configurations and usage in various unit tests (e.g., `TestS3DataManager`, `TestWeeklyDigestLambda`, `TestSubscriptionLambda`) for better test isolation and accuracy, primarily by using `setUp/tearDown` for patch management and `patch.object` for dynamically loaded modules.
+
+### 🔧 **Developer Experience**
+- **Enhanced Test Documentation**: Updated `docs/TESTING_GUIDE.md` with a detailed section on the Python import strategy for local testing and Lambda deployment.
+- **Improved Debugging Guidance**: Updated `docs/DEVELOPMENT_SETUP.md` to reference the new import strategy documentation for troubleshooting import errors in tests.
+
 ## [1.1.0] - 2024-12-XX - Architectural Improvements & Production Readiness
 
 ### 🏗️ **Major Architectural Enhancements**
