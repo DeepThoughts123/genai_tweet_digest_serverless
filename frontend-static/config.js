@@ -3,7 +3,7 @@
 
 const config = {
   // API Gateway endpoint (update after deployment)
-  API_BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'https://test-api-gateway.execute-api.us-east-1.amazonaws.com/production',
+  API_BASE_URL: 'https://zjqk5961gc.execute-api.us-east-1.amazonaws.com/production',
   
   // Subscription endpoint
   SUBSCRIPTION_ENDPOINT: '/subscribe',
@@ -23,6 +23,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = config;
 } else if (typeof window !== 'undefined') {
   window.APP_CONFIG = config;
+  window.CONFIG = config;
 }
 
 export default config; 

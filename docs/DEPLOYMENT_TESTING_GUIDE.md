@@ -250,6 +250,89 @@ aws s3 sync frontend-static/out/ s3://WEBSITE_BUCKET_NAME/ --profile $AWS_PROFIL
 aws s3 cp frontend-static/config.js s3://WEBSITE_BUCKET_NAME/config.js --profile $AWS_PROFILE
 ```
 
+### Frontend Shows Generic Error Messages
+**Symptoms:** 
+- All errors show "Something went wrong. Please try again."
+- Duplicate email submissions don't show "Email already subscribed"
+- Invalid emails don't show proper validation messages
+
+**Root Cause:** Frontend error handling overrides API service messages
+
+**Debugging Steps:**
+```bash
+# 1. Test API directly to verify it returns correct messages
+curl -X POST https://API_GATEWAY_URL/subscribe -H "Content-Type: application/json" -d '{"email": "test@example.com"}' -v
+curl -X POST https://API_GATEWAY_URL/subscribe -H "Content-Type: application/json" -d '{"email": "test@example.com"}' -v  # Duplicate
+curl -X POST https://API_GATEWAY_URL/subscribe -H "Content-Type: application/json" -d '{"email": "invalid-email"}' -v    # Invalid
+
+# 2. Check for conflicting API service files
+ls -la frontend-static/src/utils/api.*
+
+# 3. Verify config.js is loaded correctly
+curl -s https://CLOUDFRONT_URL/config.js
+
+# 4. Check built JavaScript for correct API integration
+curl -s "https://CLOUDFRONT_URL/_next/static/chunks/app/page-HASH.js" | grep -o "API_BASE_URL"
+```
+
+**Solution:**
+```bash
+# 1. Remove conflicting TypeScript files
+rm -f frontend-static/src/utils/api.ts
+
+# 2. Ensure EmailSignup component uses API service messages directly
+# Edit frontend-static/src/components/EmailSignup.tsx:
+# Replace complex error handling with: setMessage(error.message);
+
+# 3. Rebuild and redeploy
+cd frontend-static && npm run build
+cd .. && aws s3 sync frontend-static/out/ s3://WEBSITE_BUCKET_NAME/ --profile $AWS_PROFILE --delete
+aws s3 cp frontend-static/config.js s3://WEBSITE_BUCKET_NAME/config.js --profile $AWS_PROFILE
+
+# 4. Invalidate CloudFront cache
+DISTRIBUTION_ID=$(zsh -d -f -c "aws cloudfront list-distributions --profile $AWS_PROFILE --query 'DistributionList.Items[?DomainName==\`CLOUDFRONT_DOMAIN\`].Id' --output text | cat")
+zsh -d -f -c "aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths '/*' --profile $AWS_PROFILE | cat"
+
+# 5. Wait for invalidation to complete
+zsh -d -f -c "aws cloudfront get-invalidation --distribution-id $DISTRIBUTION_ID --id INVALIDATION_ID --profile $AWS_PROFILE --query 'Invalidation.Status' --output text | cat"
+```
+
+### CloudFront Serving Old Frontend Files
+**Symptoms:**
+- Website shows old behavior after frontend updates
+- New JavaScript files return 404 errors
+- Changes not visible despite successful S3 upload
+
+**Root Cause:** CloudFront cache not invalidated after deployment
+
+**Solution:**
+```bash
+# 1. Find CloudFront distribution ID
+DISTRIBUTION_ID=$(zsh -d -f -c "aws cloudfront list-distributions --profile $AWS_PROFILE --query 'DistributionList.Items[?DomainName==\`YOUR_CLOUDFRONT_DOMAIN\`].Id' --output text | cat")
+
+# 2. Create invalidation
+INVALIDATION_RESULT=$(zsh -d -f -c "aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths '/*' --profile $AWS_PROFILE | cat")
+INVALIDATION_ID=$(echo $INVALIDATION_RESULT | jq -r '.Invalidation.Id')
+
+# 3. Monitor invalidation status
+while true; do
+  STATUS=$(zsh -d -f -c "aws cloudfront get-invalidation --distribution-id $DISTRIBUTION_ID --id $INVALIDATION_ID --profile $AWS_PROFILE --query 'Invalidation.Status' --output text | cat")
+  echo "Invalidation status: $STATUS"
+  if [ "$STATUS" = "Completed" ]; then
+    break
+  fi
+  sleep 30
+done
+
+# 4. Verify new files are served
+curl -s "https://YOUR_CLOUDFRONT_DOMAIN/_next/static/chunks/app/page-HASH.js" | wc -l
+```
+
+**Prevention:**
+- Always invalidate CloudFront after frontend deployments
+- Use specific paths (`/_next/static/*`) instead of `/*` to reduce costs
+- Consider implementing versioned file names in build process
+
 ### Lambda Function Timeout
 **Symptoms:** Function times out during execution
 

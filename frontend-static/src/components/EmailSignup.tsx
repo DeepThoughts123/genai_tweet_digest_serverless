@@ -39,20 +39,16 @@ export default function EmailSignup({ onSubscribe }: EmailSignupProps) {
         setMessage('Thank you! You\'ll receive our weekly digest soon.');
         setEmail('');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Subscription error:', error);
       
       // Handle specific error messages from ApiService
       if (error instanceof Error) {
         const errorMessage = error.message;
         
-        if (errorMessage.includes('already subscribed') || errorMessage.includes('409')) {
-          setMessage('Email already subscribed to weekly digest');
-        } else if (errorMessage.includes('invalid') || errorMessage.includes('validation')) {
-          setMessage('Please enter a valid email address');
-        } else {
-          setMessage('Something went wrong. Please try again.');
-        }
+        // Use the actual error message from the API service
+        // The API service already handles status codes and returns appropriate messages
+        setMessage(errorMessage);
       } else {
         setMessage('Something went wrong. Please try again.');
       }

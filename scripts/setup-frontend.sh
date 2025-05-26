@@ -50,8 +50,10 @@ EOF
 # Update the subscription service to use the new API
 echo -e "${YELLOW}🔄 Updating API calls for serverless backend...${NC}"
 
-# Create updated subscription service
+# Create updated subscription service with proper error handling
 mkdir -p src/utils
+# Remove any existing TypeScript API files to avoid conflicts
+rm -f src/utils/api.ts
 cat > src/utils/api.js << 'EOF'
 import config from '../../config.js';
 
@@ -73,7 +75,22 @@ class ApiService {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.message || 'Subscription failed');
+        // Create error with status code information for better error handling
+        let errorMessage = data.message || data.error || 'Subscription failed';
+        
+        // Handle specific status codes with proper messages
+        if (response.status === 422) {
+          errorMessage = 'Please enter a valid email address';
+        } else if (response.status === 409) {
+          // Use the actual message from the API response
+          errorMessage = data.message || 'Email already subscribed to weekly digest';
+        } else if (response.status === 400) {
+          errorMessage = 'Please enter a valid email address';
+        }
+        
+        const error = new Error(errorMessage);
+        error.status = response.status;
+        throw error;
       }
 
       return data;

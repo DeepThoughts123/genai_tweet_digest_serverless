@@ -94,8 +94,10 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.venv*/
 env/
 venv/
+venv*/
 ENV/
 env.bak/
 venv.bak/
@@ -158,9 +160,14 @@ crash.log
 
 # Serverless-specific from this project
 lambdas/build/
+lambdas/*/build/
 lambdas/*.zip
 lambdas/*.log
 !lambdas/requirements.txt # Ensure this isn't ignored if logs are broadly ignored
+
+# Lambda build artifacts and dependencies
+**/build/
+**/dist/
 
 # Node.js
 node_modules/
@@ -170,12 +177,50 @@ yarn-error.log*
 # package-lock.json # Uncomment if you prefer to only commit yarn.lock or vice-versa
 # yarn.lock # Uncomment if you prefer to only commit package-lock.json or vice-versa
 
-# Frontend build output (example)
-frontend-static/out/ # If 'out' is the build directory and regenerated
-# Add other frontend build artifacts if necessary
+# Frontend build output and dependencies
+frontend-static/out/
+frontend-static/.next/
+frontend-static/node_modules/
+frontend-static/npm-debug.log*
+frontend-static/yarn-debug.log*
+frontend-static/yarn-error.log*
+frontend-static/.env.local
+frontend-static/.env.development.local
+frontend-static/.env.test.local
+frontend-static/.env.production.local
+
+# Next.js build artifacts
+.next/
+out/
+
+# Frontend package manager files (keep package.json and package-lock.json)
+# But ignore build artifacts and cache
+.next/cache/
+*.tsbuildinfo
 
 # IDEs
 .idea/
 .vscode/
 *.swp
-*~ .venv311/
+*~
+
+# Temporary files and OS artifacts
+*.tmp
+*.temp
+.DS_Store?
+Thumbs.db
+
+# AWS and deployment artifacts
+cf-params.json
+*.pem
+*.key
+
+# Local configuration files that might contain secrets
+config/local.json
+.env.local
+.env.*.local
+
+# Test and temporary data
+/tmp/
+temp/
+test-data/

@@ -1,6 +1,17 @@
 {
   "influential_accounts": [
-    "OpenAI" 
+    "OpenAI",
+    "AndrewYNg", 
+    "ClaudeAI"
+  ],
+  "max_tweets_per_account": 10,
+  "days_back": 14,
+  "categories": [
+    "New AI model releases",
+    "Breakthrough research findings", 
+    "Applications and case studies",
+    "Ethical discussions and regulations",
+    "Tools and resources"
   ],
   "description": "Curated list of influential Twitter accounts in the GenAI space - TEST SINGLE",
   "last_updated": "2025-05-26",

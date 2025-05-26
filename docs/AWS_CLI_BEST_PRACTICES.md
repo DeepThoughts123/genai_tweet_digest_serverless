@@ -275,4 +275,180 @@ aws logs get-log-events --log-group-name '/aws/lambda/function-name' --log-strea
 cat /tmp/response.json | jq .
 ```
 
+### CloudFront Cache Management and Frontend Deployment Issues
+
+**Problem:** After deploying updated frontend files to S3, CloudFront continues serving old cached versions, causing users to see outdated JavaScript with incorrect error handling or missing features.
+
+**Root Cause:** CloudFront caches static assets (JavaScript, CSS, images) for performance. When files are updated in S3, CloudFront doesn't automatically serve the new versions until the cache expires or is manually invalidated.
+
+**Symptoms:**
+- Website shows old error messages or behavior after frontend updates
+- New JavaScript files return 404 errors when accessed directly
+- Browser developer tools show old file hashes in network requests
+
+**Solutions:**
+
+1. **Find CloudFront Distribution ID:**
+   ```bash
+   # Method 1: From CloudFormation outputs (if available)
+   aws cloudformation describe-stacks --stack-name STACK_NAME --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDistributionId`].OutputValue' --output text
+
+   # Method 2: By matching domain name
+   zsh -d -f -c "aws cloudfront list-distributions --profile PROFILE --query 'DistributionList.Items[?DomainName==\`your-domain.cloudfront.net\`].Id' --output text | cat"
+   ```
+
+2. **Create CloudFront Invalidation:**
+   ```bash
+   # Invalidate all files (use sparingly due to cost)
+   zsh -d -f -c "aws cloudfront create-invalidation --distribution-id DISTRIBUTION_ID --paths '/*' --profile PROFILE | cat"
+
+   # Invalidate specific paths (more cost-effective)
+   zsh -d -f -c "aws cloudfront create-invalidation --distribution-id DISTRIBUTION_ID --paths '/_next/static/*' '/config.js' --profile PROFILE | cat"
+   ```
+
+3. **Monitor Invalidation Status:**
+   ```bash
+   zsh -d -f -c "aws cloudfront get-invalidation --distribution-id DISTRIBUTION_ID --id INVALIDATION_ID --profile PROFILE --query 'Invalidation.Status' --output text | cat"
+   ```
+
+4. **Verify New Files Are Served:**
+   ```bash
+   # Check if new JavaScript files are accessible
+   curl -s "https://your-domain.cloudfront.net/_next/static/chunks/app/page-HASH.js" | wc -l
+
+   # Verify config.js is updated
+   curl -s "https://your-domain.cloudfront.net/config.js"
+   ```
+
+**Best Practices:**
+- **Always invalidate after frontend deployments** that change JavaScript logic
+- **Use specific paths** instead of `/*` to minimize invalidation costs
+- **Wait for invalidation completion** before testing (typically 1-3 minutes)
+- **Consider versioned file names** in build process to avoid cache issues
+
+### Frontend Error Handling and API Integration Issues
+
+**Problem:** Frontend shows generic "Something went wrong" messages instead of specific API error responses, making it difficult for users to understand what action to take.
+
+**Root Cause:** Frontend error handling logic overrides API service error messages with hardcoded fallback messages, ignoring the specific status codes and messages returned by the backend.
+
+**Common Symptoms:**
+- All errors show "Something went wrong. Please try again."
+- Duplicate email submissions show generic error instead of "Email already subscribed"
+- Invalid email formats show generic error instead of validation message
+
+**Debugging Process:**
+
+1. **Test API Directly:**
+   ```bash
+   # Test successful subscription
+   curl -X POST https://api-url/subscribe -H "Content-Type: application/json" -d '{"email": "new@example.com"}' -v
+
+   # Test duplicate subscription
+   curl -X POST https://api-url/subscribe -H "Content-Type: application/json" -d '{"email": "new@example.com"}' -v
+
+   # Test invalid email
+   curl -X POST https://api-url/subscribe -H "Content-Type: application/json" -d '{"email": "invalid-email"}' -v
+   ```
+
+2. **Verify API Service Configuration:**
+   ```bash
+   # Check if config.js is properly loaded
+   curl -s https://cloudfront-url/config.js
+
+   # Verify API service in built JavaScript
+   curl -s "https://cloudfront-url/_next/static/chunks/app/page-HASH.js" | grep -o "API_BASE_URL"
+   ```
+
+3. **Check for File Conflicts:**
+   ```bash
+   # List API service files to check for conflicts
+   ls -la frontend-static/src/utils/api.*
+   
+   # Remove conflicting TypeScript files if using JavaScript
+   rm -f frontend-static/src/utils/api.ts
+   ```
+
+**Solution Pattern:**
+
+1. **API Service Should Handle Status Codes:**
+   ```javascript
+   // In api.js - Handle specific status codes and return appropriate messages
+   if (!response.ok) {
+     let errorMessage = data.message || data.error || 'Subscription failed';
+     
+     if (response.status === 422) {
+       errorMessage = 'Please enter a valid email address';
+     } else if (response.status === 409) {
+       errorMessage = data.message || 'Email already subscribed to weekly digest';
+     } else if (response.status === 400) {
+       errorMessage = 'Please enter a valid email address';
+     }
+     
+     const error = new Error(errorMessage);
+     error.status = response.status;
+     throw error;
+   }
+   ```
+
+2. **Frontend Should Use API Messages:**
+   ```javascript
+   // In EmailSignup component - Use actual error messages from API service
+   catch (error) {
+     if (error instanceof Error) {
+       // Use the actual error message from the API service
+       setMessage(error.message);
+     } else {
+       setMessage('Something went wrong. Please try again.');
+     }
+   }
+   ```
+
+3. **Avoid Complex Override Logic:**
+   ```javascript
+   // AVOID: Complex logic that ignores API messages
+   if (status === 409 || errorMessage.includes('already subscribed')) {
+     setMessage('Email already subscribed to weekly digest');
+   } else if (status === 422 || errorMessage.includes('Validation error')) {
+     setMessage('Please enter a valid email address');
+   } else {
+     setMessage('Something went wrong. Please try again.');
+   }
+
+   // PREFER: Simple logic that trusts API messages
+   setMessage(errorMessage);
+   ```
+
+**Deployment Workflow for Frontend Changes:**
+
+1. **Make Changes and Remove Conflicts:**
+   ```bash
+   # Remove any conflicting files
+   rm -f frontend-static/src/utils/api.ts
+   ```
+
+2. **Rebuild Frontend:**
+   ```bash
+   cd frontend-static && npm run build
+   ```
+
+3. **Deploy to S3:**
+   ```bash
+   aws s3 sync frontend-static/out/ s3://bucket-name/ --profile PROFILE --delete
+   aws s3 cp frontend-static/config.js s3://bucket-name/config.js --profile PROFILE
+   ```
+
+4. **Invalidate CloudFront Cache:**
+   ```bash
+   zsh -d -f -c "aws cloudfront create-invalidation --distribution-id DISTRIBUTION_ID --paths '/*' --profile PROFILE | cat"
+   ```
+
+5. **Wait and Verify:**
+   ```bash
+   # Wait for invalidation to complete
+   zsh -d -f -c "aws cloudfront get-invalidation --distribution-id DISTRIBUTION_ID --id INVALIDATION_ID --profile PROFILE --query 'Invalidation.Status' --output text | cat"
+
+   # Test the website with different scenarios
+   ```
+
 By applying these learnings, deployments become smoother, and troubleshooting is more effective. 
