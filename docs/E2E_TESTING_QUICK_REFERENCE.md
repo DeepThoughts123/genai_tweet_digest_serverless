@@ -308,6 +308,114 @@ aws dynamodb scan --table-name genai-tweets-digest-subscribers-production --limi
 aws s3 ls s3://your-data-bucket-name/
 ```
 
+### Real-World Deployment Issues
+
+#### Lambda Invocation Encoding Errors
+**Symptoms**: `Invalid base64` or `Unexpected character` errors during Lambda invocation
+
+**Solution**:
+```bash
+# Use file-based payloads with clean shell execution
+echo '{"source": "manual"}' > /tmp/payload.json
+zsh -d -f -c "aws lambda invoke --function-name FUNCTION_NAME --payload file:///tmp/payload.json --region $AWS_REGION --profile $AWS_PROFILE /tmp/response.json | cat"
+
+# Or use the binary format flag
+AWS_PROFILE=profile aws lambda invoke --function-name FUNCTION_NAME --payload file:///tmp/payload.json --region region /tmp/response.json --cli-binary-format raw-in-base64-out
+```
+
+#### SES Email Verification Issues
+**Symptoms**: `Email address is not verified` errors during email testing
+
+**Solution**:
+```bash
+# Verify sender email
+aws ses verify-email-identity --email-address noreply@yourdomain.com --region us-east-1
+
+# Verify test recipient emails
+aws ses verify-email-identity --email-address test@example.com --region us-east-1
+
+# Check verification status
+aws ses get-identity-verification-attributes --identities noreply@yourdomain.com test@example.com --region us-east-1
+```
+
+#### Frontend Deployment Issues
+**Symptoms**: Website returns 403 Access Denied errors
+
+**Solution**:
+```bash
+# Build frontend
+./scripts/setup-frontend.sh
+
+# Update API configuration in frontend-static/config.js
+# Then upload to S3
+aws s3 sync frontend-static/out/ s3://website-bucket-name/ --delete
+aws s3 cp frontend-static/config.js s3://website-bucket-name/config.js
+
+# Verify deployment
+curl -s https://cloudfront-url/config.js
+```
+
+#### Shell Environment Interference
+**Symptoms**: AWS CLI commands produce unexpected output or errors
+
+**Solution**:
+```bash
+# Use clean shell execution for all AWS commands
+zsh -d -f -c "aws command --output json | cat"
+
+# Set environment variables properly
+export AWS_PROFILE=your-profile-name
+export AWS_REGION=us-east-1
+```
+
+### Complete Testing Workflow
+For real-world deployment testing, follow this sequence:
+
+1. **Infrastructure Validation**:
+   ```bash
+   ./scripts/e2e-test.sh --infrastructure-only
+   ```
+
+2. **Configuration Upload**:
+   ```bash
+   aws s3 cp data/accounts.json s3://data-bucket/config/accounts.json
+   ```
+
+3. **Frontend Deployment**:
+   ```bash
+   ./scripts/setup-frontend.sh
+   # Update config.js with real API URLs
+   aws s3 sync frontend-static/out/ s3://website-bucket/ --delete
+   ```
+
+4. **Functional Testing**:
+   ```bash
+   ./scripts/e2e-test.sh --functional-only
+   ```
+
+5. **Manual API Testing**:
+   ```bash
+   curl -X POST https://api-url/subscribe -H "Content-Type: application/json" -d '{"email": "test@example.com"}'
+   ```
+
+6. **End-to-End Workflow**:
+   ```bash
+   # Subscribe with real email
+   curl -X POST https://api-url/subscribe -d '{"email": "your-email@domain.com"}'
+   
+   # Trigger digest generation
+   echo '{}' > /tmp/payload.json
+   AWS_PROFILE=profile aws lambda invoke --function-name digest-function --payload file:///tmp/payload.json /tmp/response.json --cli-binary-format raw-in-base64-out
+   
+   # Monitor execution
+   aws logs describe-log-streams --log-group-name '/aws/lambda/digest-function' --order-by LastEventTime --descending --max-items 1
+   
+   # Verify results
+   aws s3 ls s3://data-bucket/tweets/digests/
+   aws s3 cp s3://data-bucket/tweets/digests/latest-digest.json /tmp/digest.json
+   cat /tmp/digest.json | jq '.summaries'
+   ```
+
 ## Best Practices
 
 ### Regular Testing Schedule

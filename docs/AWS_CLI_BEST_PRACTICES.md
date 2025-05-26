@@ -99,4 +99,180 @@ zsh -d -f -c "aws cloudformation create-stack ... --output json" > output.json 2
     *   Check the respective developer portals for your current quota and usage.
 *   **Production Code:** Implement proper rate limit handling (checking response headers, exponential backoff, queuing) for robust operation.
 
+## 6. End-to-End Deployment Testing Lessons Learned
+
+### Lambda Function Invocation Issues
+
+**Problem:** Direct Lambda invocation using `aws lambda invoke` with JSON payloads often fails with encoding errors like:
+```
+Could not parse payload into json: Unexpected character ('²' (code 178))
+Invalid base64: "{"source": "manual", "detail-type": "Manual Trigger"}"
+```
+
+**Root Cause:** Shell environment interference with JSON payload encoding, especially when using complex shell configurations (Oh My Zsh, custom profiles, etc.).
+
+**Effective Solutions:**
+1. **Use file-based payloads with clean shell execution:**
+   ```bash
+   echo '{"source": "manual"}' > /tmp/payload.json
+   zsh -d -f -c "aws lambda invoke --function-name FUNCTION_NAME --payload file:///tmp/payload.json --region REGION --profile PROFILE /tmp/response.json | cat"
+   ```
+
+2. **Use the `--cli-binary-format raw-in-base64-out` flag:**
+   ```bash
+   AWS_PROFILE=profile aws lambda invoke --function-name FUNCTION_NAME --payload file:///tmp/payload.json --region REGION /tmp/response.json --cli-binary-format raw-in-base64-out
+   ```
+
+3. **Alternative: Use EventBridge for scheduled functions:**
+   ```bash
+   zsh -d -f -c "aws events put-events --entries '[{\"Source\": \"manual.trigger\", \"DetailType\": \"Manual Test\", \"Detail\": \"{\\\"test\\\": true}\"}]' --region REGION --profile PROFILE | cat"
+   ```
+
+### Amazon SES Email Verification Requirements
+
+**Problem:** Lambda functions attempting to send emails fail with:
+```
+MessageRejected: Email address is not verified. The following identities failed the check in region US-EAST-1: recipient@example.com, noreply@example.com
+```
+
+**Root Cause:** Amazon SES operates in "sandbox mode" by default, requiring verification of both sender and recipient email addresses.
+
+**Solutions:**
+1. **Verify sender email address in SES console:**
+   ```bash
+   aws ses verify-email-identity --email-address noreply@yourdomain.com --region us-east-1
+   ```
+
+2. **For testing, verify recipient emails individually:**
+   ```bash
+   aws ses verify-email-identity --email-address test@example.com --region us-east-1
+   ```
+
+3. **For production, request SES production access** to send to any email address without verification.
+
+4. **Check verification status:**
+   ```bash
+   aws ses get-identity-verification-attributes --identities noreply@yourdomain.com --region us-east-1
+   ```
+
+### Frontend Deployment to S3/CloudFront
+
+**Problem:** Static website not accessible after CloudFormation deployment, returning 403 Access Denied errors.
+
+**Root Cause:** Frontend files not uploaded to S3 bucket, or incorrect API configuration.
+
+**Solution Process:**
+1. **Build the frontend:**
+   ```bash
+   ./scripts/setup-frontend.sh
+   ```
+
+2. **Update API configuration:**
+   ```bash
+   # Edit frontend-static/config.js with actual API Gateway URL
+   API_BASE_URL: 'https://your-api-id.execute-api.region.amazonaws.com/stage'
+   ```
+
+3. **Upload to S3:**
+   ```bash
+   aws s3 sync frontend-static/out/ s3://website-bucket-name/ --profile PROFILE --delete
+   aws s3 cp frontend-static/config.js s3://website-bucket-name/config.js --profile PROFILE
+   ```
+
+4. **Verify deployment:**
+   ```bash
+   curl -s https://cloudfront-distribution-url/config.js
+   ```
+
+### Real-World Testing Workflow
+
+**Effective End-to-End Testing Process:**
+
+1. **Verify Infrastructure:**
+   ```bash
+   ./scripts/e2e-test.sh --infrastructure-only
+   ```
+
+2. **Test Individual Components:**
+   ```bash
+   ./scripts/e2e-test.sh --functional-only
+   ```
+
+3. **Deploy and Configure Frontend:**
+   ```bash
+   ./scripts/setup-frontend.sh
+   # Update config.js with real API URLs
+   aws s3 sync frontend-static/out/ s3://bucket/ --delete
+   ```
+
+4. **Test Subscription Flow:**
+   ```bash
+   curl -X POST https://api-url/subscribe -H "Content-Type: application/json" -d '{"email": "test@example.com"}'
+   ```
+
+5. **Trigger Digest Generation:**
+   ```bash
+   # Use clean shell execution for Lambda invocation
+   echo '{}' > /tmp/payload.json
+   AWS_PROFILE=profile aws lambda invoke --function-name digest-function --payload file:///tmp/payload.json --region region /tmp/response.json --cli-binary-format raw-in-base64-out
+   ```
+
+6. **Monitor Execution:**
+   ```bash
+   # Check CloudWatch logs
+   aws logs describe-log-streams --log-group-name '/aws/lambda/function-name' --order-by LastEventTime --descending --max-items 1
+   aws logs get-log-events --log-group-name '/aws/lambda/function-name' --log-stream-name 'stream-name'
+   ```
+
+7. **Verify Results:**
+   ```bash
+   # Check generated digest
+   aws s3 cp s3://data-bucket/tweets/digests/latest-digest.json /tmp/digest.json
+   cat /tmp/digest.json | jq '.summaries'
+   ```
+
+### Configuration Management Best Practices
+
+**Upload Configuration Files:**
+```bash
+aws s3 cp data/accounts.json s3://data-bucket/config/accounts.json --profile PROFILE
+```
+
+**Verify Configuration:**
+```bash
+aws s3 cp s3://data-bucket/config/accounts.json /tmp/verify.json --profile PROFILE
+cat /tmp/verify.json
+```
+
+**Update Configuration for Testing:**
+```json
+{
+  "influential_accounts": ["OpenAI", "AndrewYNg", "ClaudeAI"],
+  "max_tweets_per_account": 10,
+  "days_back": 14
+}
+```
+
+### Debugging Lambda Execution
+
+**Check Function Configuration:**
+```bash
+aws lambda get-function-configuration --function-name FUNCTION_NAME --query 'Environment.Variables'
+```
+
+**Monitor Real-Time Logs:**
+```bash
+# Get latest log stream
+LATEST_STREAM=$(aws logs describe-log-streams --log-group-name '/aws/lambda/function-name' --order-by LastEventTime --descending --max-items 1 --query 'logStreams[0].logStreamName' --output text)
+
+# Get log events
+aws logs get-log-events --log-group-name '/aws/lambda/function-name' --log-stream-name "$LATEST_STREAM"
+```
+
+**Verify Function Response:**
+```bash
+# Check response file after invocation
+cat /tmp/response.json | jq .
+```
+
 By applying these learnings, deployments become smoother, and troubleshooting is more effective. 
