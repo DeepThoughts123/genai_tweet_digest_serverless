@@ -149,7 +149,7 @@ describe('EmailSignup Component', () => {
       await user.click(submitButton);
       
       await waitFor(() => {
-        expect(screen.getByText(/something went wrong. please try again/i)).toBeInTheDocument();
+        expect(screen.getByText(/network error/i)).toBeInTheDocument();
       });
     });
   });

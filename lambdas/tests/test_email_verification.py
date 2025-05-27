@@ -6,7 +6,7 @@ import pytest
 import boto3
 import uuid
 from datetime import datetime, timedelta
-from moto import mock_dynamodb, mock_ses
+from moto import mock_aws
 from unittest.mock import patch, MagicMock
 import sys
 import os
@@ -18,12 +18,11 @@ from shared.email_verification_service import EmailVerificationService
 from shared.dynamodb_service import SubscriberService
 from shared.config import config
 
-@mock_dynamodb
-@mock_ses
+@mock_aws
 class TestEmailVerificationService:
     """Test email verification functionality."""
     
-    def setup_method(self):
+    def setup_method(self, method):
         """Set up test environment."""
         # Mock AWS services
         self.dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
@@ -272,11 +271,11 @@ class TestEmailVerificationService:
                 assert 'verify' in message['Body']['Html']['Data'].lower()
 
 
-@mock_dynamodb
+@mock_aws
 class TestSubscriptionWithVerification:
     """Test subscription Lambda function with verification."""
     
-    def setup_method(self):
+    def setup_method(self, method):
         """Set up test environment."""
         # Import here to avoid circular imports
         sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'subscription'))

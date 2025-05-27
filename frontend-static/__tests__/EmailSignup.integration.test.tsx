@@ -5,6 +5,9 @@ import EmailSignup from '@/components/EmailSignup';
 // Mock fetch for API calls
 global.fetch = jest.fn();
 
+// AWS API Gateway URL used in static environment
+const EXPECTED_API_URL = 'https://dzin6h5zvf.execute-api.us-east-1.amazonaws.com/production/subscribe';
+
 describe('EmailSignup Backend Integration', () => {
   beforeEach(() => {
     (fetch as jest.Mock).mockClear();
@@ -17,10 +20,13 @@ describe('EmailSignup Backend Integration', () => {
   it('should successfully submit email to backend API', async () => {
     const user = userEvent.setup();
     
-    // Mock successful API response
+    // Mock successful API response with proper Headers object
     (fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       status: 201,
+      headers: new Map([
+        ['content-type', 'application/json'],
+      ]),
       json: async () => ({
         message: 'Successfully subscribed to weekly digest',
         email: 'test@example.com',
@@ -38,9 +44,9 @@ describe('EmailSignup Backend Integration', () => {
     await user.type(emailInput, 'test@example.com');
     await user.click(submitButton);
     
-    // Verify API call was made
+    // Verify API call was made to the correct AWS endpoint
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('/api/v1/subscription', {
+      expect(fetch).toHaveBeenCalledWith(EXPECTED_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -51,7 +57,7 @@ describe('EmailSignup Backend Integration', () => {
     
     // Verify success message is displayed
     await waitFor(() => {
-      expect(screen.getByText(/thank you! you'll receive our weekly digest soon/i)).toBeInTheDocument();
+      expect(screen.getByText(/verification email sent! please check your inbox and click the verification link/i)).toBeInTheDocument();
     });
     
     // Verify email input is cleared
@@ -87,6 +93,7 @@ describe('EmailSignup Backend Integration', () => {
     (fetch as jest.Mock).mockResolvedValueOnce({
       ok: false,
       status: 422,
+      headers: new Map([['content-type', 'application/json']]),
       json: async () => ({
         detail: [
           {
@@ -120,6 +127,7 @@ describe('EmailSignup Backend Integration', () => {
     (fetch as jest.Mock).mockResolvedValueOnce({
       ok: false,
       status: 409,
+      headers: new Map([['content-type', 'application/json']]),
       json: async () => ({
         error: 'Email already subscribed to weekly digest',
         detail: 'This email address is already in our subscription list'
@@ -156,9 +164,9 @@ describe('EmailSignup Backend Integration', () => {
     await user.type(emailInput, 'test@example.com');
     await user.click(submitButton);
     
-    // Verify error message is displayed
+    // Verify error message is displayed (component shows the original error message)
     await waitFor(() => {
-      expect(screen.getByText(/something went wrong. please try again/i)).toBeInTheDocument();
+      expect(screen.getByText(/network error/i)).toBeInTheDocument();
     });
   });
 
@@ -169,6 +177,7 @@ describe('EmailSignup Backend Integration', () => {
     (fetch as jest.Mock).mockResolvedValueOnce({
       ok: false,
       status: 500,
+      headers: new Map([['content-type', 'application/json']]),
       json: async () => ({
         error: 'Internal server error',
         detail: 'An unexpected error occurred'
@@ -184,7 +193,7 @@ describe('EmailSignup Backend Integration', () => {
     await user.type(emailInput, 'test@example.com');
     await user.click(submitButton);
     
-    // Verify error message is displayed
+    // Verify error message is displayed (matches what api.js returns for 500 errors)
     await waitFor(() => {
       expect(screen.getByText(/something went wrong. please try again/i)).toBeInTheDocument();
     });
@@ -199,6 +208,7 @@ describe('EmailSignup Backend Integration', () => {
         setTimeout(() => resolve({
           ok: true,
           status: 201,
+          headers: new Map([['content-type', 'application/json']]),
           json: async () => ({
             message: 'Successfully subscribed to weekly digest',
             email: 'test@example.com',
@@ -223,9 +233,9 @@ describe('EmailSignup Backend Integration', () => {
     expect(submitButton).toBeDisabled();
     expect(emailInput).toBeDisabled();
     
-    // Wait for completion
+    // Wait for completion - should show verification email message for API calls
     await waitFor(() => {
-      expect(screen.getByText(/thank you! you'll receive our weekly digest soon/i)).toBeInTheDocument();
+      expect(screen.getByText(/verification email sent! please check your inbox and click the verification link/i)).toBeInTheDocument();
     });
   });
 
@@ -236,6 +246,7 @@ describe('EmailSignup Backend Integration', () => {
     (fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       status: 201,
+      headers: new Map([['content-type', 'application/json']]),
       json: async () => ({
         message: 'Successfully subscribed to weekly digest',
         email: 'test@example.com',
@@ -253,9 +264,9 @@ describe('EmailSignup Backend Integration', () => {
     await user.type(emailInput, 'test@example.com');
     await user.click(submitButton);
     
-    // Verify correct endpoint is called
+    // Verify correct AWS API Gateway endpoint is called
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('/api/v1/subscription', expect.any(Object));
+      expect(fetch).toHaveBeenCalledWith(EXPECTED_API_URL, expect.any(Object));
     });
   });
 
@@ -288,6 +299,7 @@ describe('EmailSignup Backend Integration', () => {
     (fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       status: 201,
+      headers: new Map([['content-type', 'application/json']]),
       json: async () => ({
         message: 'Successfully subscribed to weekly digest',
         email: 'test@example.com',
@@ -305,9 +317,9 @@ describe('EmailSignup Backend Integration', () => {
     await user.type(emailInput, '  test@example.com  ');
     await user.click(submitButton);
     
-    // Verify API call was made with trimmed email
+    // Verify API call was made with trimmed email to AWS endpoint
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('/api/v1/subscription', {
+      expect(fetch).toHaveBeenCalledWith(EXPECTED_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

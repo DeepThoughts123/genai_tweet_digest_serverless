@@ -18,6 +18,8 @@ const customJestConfig = {
     '!src/**/*.d.ts',
     '!src/app/layout.tsx',
   ],
+  // Set up environment variables for testing
+  setupFiles: ['<rootDir>/jest.env.js'],
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async

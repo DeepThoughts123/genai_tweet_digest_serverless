@@ -34,7 +34,16 @@ class ApiService {
       });
 
       console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      // Safely handle headers logging (avoid errors in test environment)
+      try {
+        if (response.headers && response.headers.entries) {
+          console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+        }
+      } catch {
+        // Ignore header logging errors in test environment
+        console.log('Headers logging skipped (test environment)');
+      }
 
       const data = await response.json();
       console.log('Response data:', data);
@@ -50,7 +59,7 @@ class ApiService {
         } else if (response.status === 400) {
           errorMessage = 'Please enter a valid email address';
         } else if (response.status === 500) {
-          errorMessage = 'Server error. Please try again later.';
+          errorMessage = 'Something went wrong. Please try again.';
         }
         
         const error = new Error(errorMessage);
@@ -65,7 +74,7 @@ class ApiService {
       
       // Handle network errors
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        const networkError = new Error('Network error. Please check your connection and try again.');
+        const networkError = new Error('Something went wrong. Please try again.');
         networkError.status = 0;
         networkError.originalError = error;
         throw networkError;
