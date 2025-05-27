@@ -1,8 +1,279 @@
 # Deployment Workarounds and Key Learnings
 
-This document outlines the key challenges encountered and the successful workarounds found during the deployment of the GenAI Tweets Digest serverless infrastructure, particularly concerning shell environment issues and AWS CloudFormation.
+This document outlines the key challenges encountered and the successful workarounds found during the deployment of the GenAI Tweets Digest serverless infrastructure, particularly concerning shell environment issues, AWS CloudFormation, and the critical deployment pitfalls discovered during production deployments.
 
-## 1. Shell Output Issues with AWS CLI
+## 1. CloudFormation Stack Deletion and S3 Cleanup
+
+### Problem: Stack Stuck in DELETE_FAILED State
+
+**Scenario:** CloudFormation stack fails to delete with error message "The following resource(s) failed to delete: [DataBucket, WebsiteBucket]" and remains in DELETE_FAILED state.
+
+**Root Cause:** S3 buckets cannot be deleted by CloudFormation if they contain any objects, including object versions and delete markers when versioning is enabled.
+
+### Complete Stack Deletion Process
+
+**⚠️ IMPORTANT: Always backup data before deletion if you want to preserve it**
+
+#### Step 1: Check S3 Bucket Contents and Backup Data
+```bash
+# Set your AWS profile and bucket names
+export AWS_PROFILE=personal
+DATA_BUCKET="genai-tweets-digest-data-production-855450210814"
+WEBSITE_BUCKET="genai-tweets-digest-website-production-855450210814"
+
+# Check what's in the buckets before deletion
+echo "=== Data Bucket Contents ==="
+zsh -d -f -c "export AWS_PROFILE=personal && aws s3 ls s3://$DATA_BUCKET --recursive | cat"
+
+echo "=== Website Bucket Contents ==="
+zsh -d -f -c "export AWS_PROFILE=personal && aws s3 ls s3://$WEBSITE_BUCKET --recursive | cat"
+
+# Optional: Backup important data
+mkdir -p ./backup-$(date +%Y%m%d)
+zsh -d -f -c "export AWS_PROFILE=personal && aws s3 sync s3://$DATA_BUCKET/tweets/ ./backup-$(date +%Y%m%d)/tweets/ | cat"
+zsh -d -f -c "export AWS_PROFILE=personal && aws s3 sync s3://$DATA_BUCKET/config/ ./backup-$(date +%Y%m%d)/config/ | cat"
+```
+
+#### Step 2: Empty S3 Buckets Completely
+```bash
+# Empty data bucket (including all object versions and delete markers)
+echo "Emptying data bucket..."
+zsh -d -f -c "export AWS_PROFILE=personal && aws s3 rm s3://$DATA_BUCKET --recursive | cat"
+
+# For versioned buckets, also remove all versions and delete markers
+zsh -d -f -c "export AWS_PROFILE=personal && aws s3api delete-objects --bucket $DATA_BUCKET --delete \"\$(aws s3api list-object-versions --bucket $DATA_BUCKET --query='{Objects: Versions[].{Key:Key,VersionId:VersionId}}')\" 2>/dev/null || echo 'No versions to delete' | cat"
+
+zsh -d -f -c "export AWS_PROFILE=personal && aws s3api delete-objects --bucket $DATA_BUCKET --delete \"\$(aws s3api list-object-versions --bucket $DATA_BUCKET --query='{Objects: DeleteMarkers[].{Key:Key,VersionId:VersionId}}')\" 2>/dev/null || echo 'No delete markers' | cat"
+
+# Empty website bucket
+echo "Emptying website bucket..."
+zsh -d -f -c "export AWS_PROFILE=personal && aws s3 rm s3://$WEBSITE_BUCKET --recursive | cat"
+```
+
+#### Step 3: Delete Buckets Manually (if needed)
+```bash
+# Try to delete the buckets manually
+echo "Deleting data bucket..."
+zsh -d -f -c "export AWS_PROFILE=personal && aws s3 rb s3://$DATA_BUCKET | cat"
+
+echo "Deleting website bucket..."
+zsh -d -f -c "export AWS_PROFILE=personal && aws s3 rb s3://$WEBSITE_BUCKET | cat"
+```
+
+#### Step 4: Complete Stack Deletion
+```bash
+# Now delete the CloudFormation stack
+STACK_NAME="genai-tweets-digest-production"
+echo "Deleting CloudFormation stack..."
+zsh -d -f -c "export AWS_PROFILE=personal && aws cloudformation delete-stack --stack-name $STACK_NAME --region us-east-1 | cat"
+
+# Wait for deletion to complete
+echo "Waiting for stack deletion to complete..."
+zsh -d -f -c "export AWS_PROFILE=personal && aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME --region us-east-1 | cat"
+
+# Verify stack is gone
+zsh -d -f -c "export AWS_PROFILE=personal && aws cloudformation describe-stacks --stack-name $STACK_NAME --region us-east-1 2>/dev/null && echo 'Stack still exists' || echo 'Stack successfully deleted' | cat"
+```
+
+### Verification Commands
+
+```bash
+# Check if any resources remain
+echo "Checking for remaining S3 buckets..."
+zsh -d -f -c "export AWS_PROFILE=personal && aws s3 ls | grep genai-tweets-digest | cat"
+
+echo "Checking for remaining Lambda functions..."
+zsh -d -f -c "export AWS_PROFILE=personal && aws lambda list-functions --query 'Functions[?starts_with(FunctionName, \`genai-tweets-digest\`)].FunctionName' --output table --region us-east-1 | cat"
+
+echo "Checking for remaining DynamoDB tables..."
+zsh -d -f -c "export AWS_PROFILE=personal && aws dynamodb list-tables --query 'TableNames[?starts_with(@, \`genai-tweets-digest\`)]' --output table --region us-east-1 | cat"
+```
+
+## 2. Lambda Package Size Optimization
+
+### Problem: Lambda Function Package Size Limits
+
+**Size Limits:**
+- Direct upload (zip file): 50MB
+- Unzipped package: 250MB  
+- S3 upload: 250MB unzipped
+
+**Common Issues:**
+- `google-generativeai` with `grpcio` dependencies create 150MB+ packages
+- `botocore` includes data for all AWS services (20MB+)
+- Multiple functions packaging identical dependencies
+
+### Solution 1: Function-Specific Minimal Packaging
+
+**For Simple Functions (Subscription, Email Verification):**
+```bash
+cd lambdas
+
+# Create minimal requirements (boto3 only)
+echo "Building subscription function with minimal dependencies..."
+rm -rf build/subscription
+mkdir -p build/subscription
+
+# Install only essential dependencies
+pip install 'boto3>=1.34.0' -t build/subscription/ \
+    --index-url https://pypi.org/simple \
+    --only-binary=:all:
+
+# Copy function code
+cp -r shared build/subscription/
+cp subscription/lambda_function.py build/subscription/
+
+# Package (results in ~15MB)
+cd build/subscription
+zip -r ../../subscription-function.zip . > /dev/null
+cd ../../
+ls -lh subscription-function.zip  # Should show ~15MB
+```
+
+**For AI-Heavy Functions (Weekly Digest):**
+```bash
+echo "Building weekly digest function with optimized dependencies..."
+rm -rf build/weekly-digest
+mkdir -p build/weekly-digest
+
+# Use manylinux wheels to reduce grpcio size
+pip install --no-cache-dir -r requirements.txt -t build/weekly-digest/ \
+    --index-url https://pypi.org/simple \
+    --platform manylinux2014_x86_64 \
+    --python-version 3.11 \
+    --implementation cp \
+    --abi cp311 \
+    --only-binary=:all:
+
+# Copy function code
+cp -r shared build/weekly-digest/
+cp weekly-digest/lambda_function.py build/weekly-digest/
+
+# Package (results in ~46MB instead of 150MB+)
+cd build/weekly-digest
+zip -r ../../weekly-digest-function.zip . > /dev/null
+cd ../../
+ls -lh weekly-digest-function.zip  # Should show ~46MB
+```
+
+### Solution 2: S3-Based Deployment for Large Packages
+
+**For packages >50MB:**
+```bash
+# Upload to S3 first
+DATA_BUCKET="genai-tweets-digest-data-production-855450210814"
+zsh -d -f -c "export AWS_PROFILE=personal && aws s3 cp lambdas/weekly-digest-function.zip s3://$DATA_BUCKET/lambda-packages/weekly-digest-function.zip | cat"
+
+# Update Lambda function from S3
+zsh -d -f -c "export AWS_PROFILE=personal && aws lambda update-function-code --function-name genai-tweets-digest-weekly-digest-production --s3-bucket $DATA_BUCKET --s3-key lambda-packages/weekly-digest-function.zip --region us-east-1 | cat"
+```
+
+### Package Size Verification
+
+```bash
+# Check current function code size
+zsh -d -f -c "export AWS_PROFILE=personal && aws lambda get-function --function-name genai-tweets-digest-weekly-digest-production --query 'Configuration.CodeSize' --region us-east-1 | cat"
+
+# Check unzipped size locally
+unzip -l weekly-digest-function.zip | tail -1
+```
+
+## 3. SES Email Configuration Issues
+
+### Problem: Missing Environment Variables Causing Email Failures
+
+**Common Error:**
+```
+An error occurred (MessageRejected) when calling the SendEmail operation: 
+Email address is not verified. The following identities failed the check: 
+test@example.com, digest@genai-tweets.com
+```
+
+**Root Causes:**
+1. Missing `FROM_EMAIL` environment variable in Lambda functions
+2. Using unverified sender/recipient email addresses in SES sandbox mode
+3. Hardcoded email addresses in code instead of using environment variables
+
+### Solution: Complete SES Configuration
+
+#### Step 1: Verify Email Addresses in SES
+```bash
+# Verify the sender email address
+zsh -d -f -c "export AWS_PROFILE=personal && aws ses verify-email-identity --email-address dnn12521@gmail.com --region us-east-1 | cat"
+
+# For testing: verify recipient email addresses  
+zsh -d -f -c "export AWS_PROFILE=personal && aws ses verify-email-identity --email-address test@example.com --region us-east-1 | cat"
+
+# Check verification status
+zsh -d -f -c "export AWS_PROFILE=personal && aws ses list-identities --region us-east-1 | cat"
+```
+
+#### Step 2: Update Lambda Environment Variables
+
+**For all email-related functions, ensure these environment variables are set:**
+
+```bash
+# Update subscription function
+zsh -d -f -c "export AWS_PROFILE=personal && aws lambda update-function-configuration --function-name genai-tweets-digest-subscription-production --environment Variables='{S3_BUCKET=genai-tweets-digest-data-production-855450210814,TWITTER_BEARER_TOKEN=YOUR_TOKEN,GEMINI_API_KEY=YOUR_KEY,ENVIRONMENT=production,SUBSCRIBERS_TABLE=genai-tweets-digest-subscribers-production,FROM_EMAIL=dnn12521@gmail.com,TO_EMAIL=dnn12521@gmail.com,API_BASE_URL=https://whkkx3sqe8.execute-api.us-east-1.amazonaws.com/production}' --region us-east-1 | cat"
+
+# Update weekly digest function  
+zsh -d -f -c "export AWS_PROFILE=personal && aws lambda update-function-configuration --function-name genai-tweets-digest-weekly-digest-production --environment Variables='{S3_BUCKET=genai-tweets-digest-data-production-855450210814,TWITTER_BEARER_TOKEN=YOUR_TOKEN,GEMINI_API_KEY=YOUR_KEY,ENVIRONMENT=production,SUBSCRIBERS_TABLE=genai-tweets-digest-subscribers-production,FROM_EMAIL=dnn12521@gmail.com,TO_EMAIL=dnn12521@gmail.com,API_BASE_URL=https://whkkx3sqe8.execute-api.us-east-1.amazonaws.com/production}' --region us-east-1 | cat"
+```
+
+#### Step 3: Environment Variable Best Practices
+
+**Create .env file for local development:**
+```bash
+# .env file (add to .gitignore)
+AWS_PROFILE=personal
+AWS_REGION=us-east-1
+ENVIRONMENT=production
+TWITTER_BEARER_TOKEN=your_twitter_bearer_token
+GEMINI_API_KEY=your_gemini_api_key
+FROM_EMAIL=your_verified_ses_email@domain.com
+TO_EMAIL=your_verified_ses_email@domain.com  # For testing in sandbox mode
+```
+
+**Verify Environment Variables:**
+```bash
+# Check if all required variables are set in Lambda
+zsh -d -f -c "export AWS_PROFILE=personal && aws lambda get-function-configuration --function-name genai-tweets-digest-subscription-production --region us-east-1 --query 'Environment.Variables' | cat"
+```
+
+#### Step 4: Test Email Functionality
+
+```bash
+# Test subscription API with verified email
+API_URL="https://whkkx3sqe8.execute-api.us-east-1.amazonaws.com/production/subscribe"
+curl -X POST $API_URL \
+  -H "Content-Type: application/json" \
+  -d '{"email": "dnn12521@gmail.com"}' \
+  -w '\nStatus: %{http_code}\n'
+
+# Expected successful response:
+# {"success": true, "message": "Verification email sent. Please check your inbox.", "subscriber_id": "uuid"}
+# Status: 201
+```
+
+### SES Sandbox vs Production Mode
+
+**Sandbox Mode (Default):**
+- Can only send to verified email addresses
+- Both sender AND recipient must be verified
+- Good for testing
+
+**Production Mode:**
+- Can send to any email address  
+- Only sender needs to be verified
+- Requires AWS support request
+
+**Request Production Access:**
+```bash
+# Check current sending quota (sandbox = 200 emails/day)
+zsh -d -f -c "export AWS_PROFILE=personal && aws ses get-send-quota --region us-east-1 | cat"
+```
+
+## 4. Shell Output Issues with AWS CLI
 
 **Problem:** AWS CLI commands, especially those intended to output JSON (e.g., `aws cloudformation describe-stacks --output json`), were having their output incorrectly piped or processed, resulting in errors like `head: |: No such file or directory` or `head: cat: No such file or directory`. This masked the actual success or failure of the commands and their JSON responses.
 
@@ -22,7 +293,7 @@ zsh -d -f -c "YOUR_AWS_COMMAND_HERE"
 
 **Note:** While temporarily commenting out `source /Users/jeffwu/.instacart_shell_profile` in `~/.zshrc` was attempted, it did not fully resolve the issue, suggesting other Zsh configurations were also at play.
 
-## 2. AWS CloudFormation Stack Creation Issues
+## 5. AWS CloudFormation Stack Creation Issues
 
 Several issues were encountered when trying to create the CloudFormation stack:
 
@@ -49,7 +320,7 @@ Several issues were encountered when trying to create the CloudFormation stack:
 *   **Passing Parameters to `create-stack`:** Long command lines with many parameters, especially API keys, were failing silently or being misinterpreted by the local shell.
     *   **Fix:** Used a JSON parameters file (`cf-params.json`) with the `aws cloudformation create-stack --parameters file://cf-params.json` option. This proved much more reliable.
 
-## 3. Successful Deployment Strategy (Summary)
+## 6. Successful Deployment Strategy (Summary)
 
 The combination that finally led to successful stack initiation was:
 
@@ -80,7 +351,7 @@ The combination that finally led to successful stack initiation was:
       },
       {
         "ParameterKey": "FromEmail",
-        "ParameterValue": "noreply@example.com"
+        "ParameterValue": "your_verified_ses_email@domain.com"
       }
     ]
     ```
@@ -91,7 +362,52 @@ The combination that finally led to successful stack initiation was:
     echo "Attempting to create stack: $STACK_NAME ..." && \
     zsh -d -f -c "aws cloudformation create-stack --stack-name $STACK_NAME --template-body file://infrastructure-aws/cloudformation-template.yaml --parameters file://cf-params.json --capabilities CAPABILITY_NAMED_IAM --region us-east-1 --output json | cat > cf-create-status.json" && \
     cat cf-create-status.json
-    # फॉलोड बाइ वेट एंड अन्य चेक्स...
     ```
 
-This approach ensures that the CloudFormation template is correct and that the parameters and the AWS CLI command itself are processed reliably. 
+This approach ensures that the CloudFormation template is correct and that the parameters and the AWS CLI command itself are processed reliably.
+
+## 7. Quick Reference: Common Deployment Commands
+
+### Environment Setup
+```bash
+export AWS_PROFILE=personal
+export AWS_REGION=us-east-1
+export ENVIRONMENT=production
+```
+
+### Stack Management
+```bash
+# Deploy new stack
+./scripts/deploy.sh
+
+# Check stack status
+zsh -d -f -c "export AWS_PROFILE=personal && aws cloudformation describe-stacks --stack-name genai-tweets-digest-production --region us-east-1 --query 'Stacks[0].StackStatus' --output text | cat"
+
+# Get stack outputs
+zsh -d -f -c "export AWS_PROFILE=personal && aws cloudformation describe-stacks --stack-name genai-tweets-digest-production --region us-east-1 --query 'Stacks[0].Outputs[*].[OutputKey,OutputValue]' --output table | cat"
+```
+
+### Lambda Function Management
+```bash
+# Update function code (for large packages)
+zsh -d -f -c "export AWS_PROFILE=personal && aws lambda update-function-code --function-name genai-tweets-digest-weekly-digest-production --s3-bucket genai-tweets-digest-data-production-855450210814 --s3-key lambda-packages/weekly-digest-function.zip --region us-east-1 | cat"
+
+# Check function status
+zsh -d -f -c "export AWS_PROFILE=personal && aws lambda get-function --function-name genai-tweets-digest-subscription-production --query 'Configuration.LastUpdateStatus' --region us-east-1 --output text | cat"
+
+# View function logs
+zsh -d -f -c "export AWS_PROFILE=personal && aws logs tail /aws/lambda/genai-tweets-digest-subscription-production --since 10m --region us-east-1 | cat"
+```
+
+### Testing Commands
+```bash
+# Test subscription API
+curl -X POST https://whkkx3sqe8.execute-api.us-east-1.amazonaws.com/production/subscribe \
+  -H "Content-Type: application/json" \
+  -d '{"email": "test@example.com"}' \
+  -w '\nStatus: %{http_code}\n'
+
+# Test weekly digest (manual trigger)
+echo '{"source": "manual", "detail-type": "Manual Trigger"}' > /tmp/digest_payload.json
+zsh -d -f -c "export AWS_PROFILE=personal && aws lambda invoke --function-name genai-tweets-digest-weekly-digest-production --payload file:///tmp/digest_payload.json --region us-east-1 /tmp/digest_response.json --cli-binary-format raw-in-base64-out | cat"
+``` 

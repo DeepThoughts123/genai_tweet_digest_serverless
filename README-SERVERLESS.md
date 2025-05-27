@@ -53,6 +53,7 @@ export AWS_PROFILE=personal
 export TWITTER_BEARER_TOKEN="your_twitter_bearer_token"
 export GEMINI_API_KEY="your_gemini_api_key"
 export FROM_EMAIL="your_verified_ses_email@domain.com"
+export TO_EMAIL="your_verified_ses_email@domain.com"  # For testing in SES sandbox mode
 export AWS_REGION="us-east-1"  # Optional, defaults to us-east-1
 
 # Verify AWS credentials are working
@@ -68,6 +69,8 @@ pip install --index-url https://pypi.org/simple package-name
 ```bash
 source .venv311/bin/activate
 ```
+
+**📧 SES Configuration**: Both `FROM_EMAIL` and `TO_EMAIL` must be verified in Amazon SES. In sandbox mode (default), both sender and recipient emails must be verified. The `TO_EMAIL` variable is useful for testing with a known verified email address.
 
 ### 2. Deploy Infrastructure
 
@@ -148,7 +151,8 @@ Edit `data/accounts.json` to customize the list of accounts to monitor:
 |----------|-------------|----------|
 | `TWITTER_BEARER_TOKEN` | Twitter API Bearer Token | ✅ |
 | `GEMINI_API_KEY` | Google Gemini API Key | ✅ |
-| `FROM_EMAIL` | Verified SES email address | ✅ |
+| `FROM_EMAIL` | Verified SES email address for sending | ✅ |
+| `TO_EMAIL` | Verified SES email address for testing | ❌ (useful for sandbox testing) |
 | `AWS_REGION` | AWS region for deployment | ❌ (default: us-east-1) |
 | `ENVIRONMENT` | Environment name | ❌ (default: production) |
 
@@ -454,6 +458,8 @@ If you encounter issues:
 
 For detailed implementation guidance and lessons learned:
 
+- **[Stack Management Guide](docs/STACK_MANAGEMENT_GUIDE.md)** - ✅ **NEW** - Comprehensive guide for CloudFormation stack deletion, S3 cleanup, and troubleshooting DELETE_FAILED states
+- **[Deployment Workarounds](docs/DEPLOYMENT_WORKAROUNDS.md)** - Updated with Lambda package optimization, SES configuration, and critical deployment lessons
 - **[Development Setup Guide](docs/DEVELOPMENT_SETUP.md)** - Updated with email verification lessons and virtual environment best practices
 - **[Email Verification Setup](docs/EMAIL_VERIFICATION_SETUP.md)** - Updated with implementation lessons, deployment challenges, and solutions
 - **[Email Verification Testing Results](docs/EMAIL_VERIFICATION_TESTING_RESULTS.md)** - ✅ **NEW** - Complete end-to-end testing validation results
@@ -463,14 +469,15 @@ For detailed implementation guidance and lessons learned:
 
 ### Recent Documentation Updates
 
-The documentation has been enhanced with lessons learned from implementing the email verification system, including:
+The documentation has been enhanced with lessons learned from production deployments, including:
 
-- **Lambda Function Packaging Optimization** - Reducing package sizes from 51MB to 15MB
-- **CloudFormation Template Management** - Adding new Lambda functions and API Gateway endpoints
-- **Environment Variable Management** - Handling function-specific requirements
-- **SES Integration Testing** - Working with sandbox mode and email verification
-- **API Gateway Deployment Timing** - Ensuring new endpoints are accessible
-- **Virtual Environment Best Practices** - Consistent development environment setup
+- **📋 Complete Stack Deletion Procedures** - Step-by-step guide for safely deleting CloudFormation stacks and handling S3 cleanup
+- **📦 Lambda Package Size Optimization** - Reducing package sizes from 150MB+ to 15-46MB using manylinux wheels and minimal dependencies
+- **📧 SES Email Configuration Management** - Handling missing environment variables and sandbox mode requirements
+- **🔧 Environment Variable Best Practices** - Including TO_EMAIL for testing and proper SES configuration
+- **🛠️ CloudFormation Template Management** - Adding new Lambda functions and API Gateway endpoints
+- **🐚 Shell Environment Workarounds** - Using clean shell execution for reliable AWS CLI operations
+- **✅ Production Deployment Validation** - Real-world testing workflows and troubleshooting guides
 
 ---
 
