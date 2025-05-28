@@ -505,3 +505,72 @@ echo -e "${YELLOW}�� Next Steps:${NC}"
 echo "  - Monitor CloudFormation stack creation in AWS console."
 echo "  - After stack is created, verify Lambda functions and API Gateway endpoints."
 echo "  - Test functionality (e.g., subscription, email verification)." 
+
+## 9. Lambda `ImportModuleError: No module named 'lambda_function'`
+
+**Symptom:**
+- API Gateway calls to a Lambda function result in a 502 Bad Gateway error.
+- CloudWatch logs for the Lambda function show: `[ERROR] Runtime.ImportModuleError: Unable to import module 'lambda_function': No module named 'lambda_function'`.
+- This can occur even if `unzip -l your-function.zip` shows `lambda_function.py` at the root of the archive and the Lambda handler is correctly set to `lambda_function.lambda_handler`.
+
+**Root Cause Analysis (Context-Specific):**
+In this project, this error surfaced after refactoring the CloudFormation template to use `${AWS::StackName}` for Lambda `FunctionName` properties (e.g., `FunctionName: !Sub "${AWS::StackName}-subscription"`).
+
+The deployment script (`scripts/deploy.sh`) has an `update_lambda_code` function that performs `aws lambda update-function-code` after the CloudFormation stack is deployed or updated.
+- **Initial Problem**: This `update_lambda_code` function was constructing target Lambda names using an older convention (e.g., `${PROJECT_NAME}-subscription-${ENVIRONMENT}`).
+- **Conflict**: If CloudFormation created/updated a Lambda with the new name (e.g., `my-unique-stack-subscription`) but the script tried to update code for `genai-tweets-digest-subscription-production`, the *correctly named Lambda* might not have received the new code package properly through the script's update step, or an older, incorrectly named Lambda was targeted.
+- The direct `aws lambda update-function-code --function-name ${CFN_STACK_NAME}-<func> ...` (using the stack name from `.env` or export, which matches `${AWS::StackName}` used in CFN) eventually resolved this by ensuring the code update targeted the correctly named function that CloudFormation was managing.
+
+**Solution & Prevention:**
+1.  **Consistent Naming**: Ensure that the script logic performing `aws lambda update-function-code` (like the `update_lambda_code` function in `scripts/deploy.sh`) constructs the target Lambda function names using the *exact same convention* as defined in the `FunctionName` property within the `infrastructure-aws/cloudformation-template.yaml`. In our case, this means using the CloudFormation stack name as the prefix: `${CFN_STACK_NAME}-<function-short-name>`.
+    ```bash
+    # In scripts/deploy.sh, inside update_lambda_code:
+    # CFN_STACK_NAME is the actual stack name being deployed/updated.
+    aws lambda update-function-code --function-name "${CFN_STACK_NAME}-subscription" ...
+    ```
+2.  **Verify CloudFormation Output**: After a CloudFormation deployment, always check the actual names of the created/updated Lambda functions in the AWS console or via `aws lambda list-functions` to ensure they match script expectations.
+3.  **Clean Deployments for Major Refactors**: When making significant changes to resource naming logic in CloudFormation, sometimes deleting and cleanly re-creating the stack (especially for development/testing environments) can prevent subtle state mismatches. For production, careful `update-stack` monitoring is key.
+
+## 10. Lambda Runtime Errors Due to Missing Environment Variables (e.g., SES MessageRejected)
+
+**Symptom:**
+- API Gateway calls return 500 or 502 errors.
+- CloudWatch logs for the Lambda function show errors originating from *within* the Lambda code, often related to external service calls. For example:
+  `Error sending verification email: An error occurred (MessageRejected) when calling the SendEmail operation: Email address is not verified. The following identities failed the check in region US-EAST-1: digest@genai-tweets.com`
+
+**Root Cause:**
+The Lambda function requires certain environment variables (e.g., `FROM_EMAIL` for SES, `API_BASE_URL` for constructing links) to be set for its proper operation. These variables are often passed as parameters to the CloudFormation template.
+If the specific Lambda function's resource definition in `infrastructure-aws/cloudformation-template.yaml` does *not* include these necessary parameters in its `Properties.Environment.Variables` section, the Lambda will not receive them, even if they are correctly passed to the CloudFormation stack itself.
+The Lambda code might then fall back to hardcoded defaults or fail if a required variable is missing.
+
+**Example:** The `SubscriptionFunction` was missing `FROM_EMAIL` in its environment, causing it to default to an unverified address.
+
+**Solution & Prevention:**
+1.  **Explicit Environment Variable Mapping in CloudFormation:**
+    In `infrastructure-aws/cloudformation-template.yaml`, for *every* Lambda function that requires parameters passed to the stack, ensure those parameters are explicitly mapped in its `Properties.Environment.Variables` section.
+    ```yaml
+    # Example for SubscriptionFunction:
+    SubscriptionFunction:
+      Type: AWS::Lambda::Function
+      Properties:
+        FunctionName: !Sub "${AWS::StackName}-subscription"
+        # ... other properties ...
+        Environment:
+          Variables:
+            ENVIRONMENT: !Ref Environment
+            S3_BUCKET: !Ref DataBucket
+            SUBSCRIBERS_TABLE: !Ref SubscribersTable
+            TWITTER_BEARER_TOKEN: !Ref TwitterBearerToken
+            GEMINI_API_KEY: !Ref GeminiApiKey
+            FROM_EMAIL: !Ref FromEmail           # Ensure this is present
+            API_BASE_URL: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}" # Ensure this is present if needed
+    ```
+2.  **Verify Lambda Configuration:** After any deployment that modifies Lambda environment variables, use the AWS Lambda console or `aws lambda get-function-configuration --function-name YOUR_FUNCTION_NAME` to confirm that all expected environment variables are present and have the correct values.
+3.  **Centralized Configuration (in code):** Utilize a shared configuration module (like `shared/config.py`) within the Lambda code that consistently reads these environment variables. This makes it easier to manage how settings are accessed.
+4.  **Parameter Store/Secrets Manager (Advanced):** For more complex applications or sensitive data, consider storing configurations in AWS Systems Manager Parameter Store or AWS Secrets Manager and having the Lambda functions fetch them at runtime (requires additional IAM permissions). For this project, environment variables via CloudFormation parameters are sufficient.
+
+echo -e "${GREEN}🎉 Optimized Lambda packaging & CloudFormation deployment process initiated!${NC}"
+echo -e "${YELLOW}�� Next Steps:${NC}"
+echo "  - Monitor CloudFormation stack creation in AWS console."
+echo "  - After stack is created, verify Lambda functions and API Gateway endpoints."
+echo "  - Test functionality (e.g., subscription, email verification)." 

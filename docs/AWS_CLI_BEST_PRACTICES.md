@@ -832,4 +832,56 @@ ENVIRONMENT=production
 5. **Error Handling:** Comprehensive error handling and logging throughout the system
 6. **Real Data Testing:** Using actual Twitter accounts and verified email addresses for realistic testing
 
-By applying these learnings, deployments become smoother, and troubleshooting is more effective. 
+By applying these learnings, deployments become smoother, and troubleshooting is more effective.
+
+## 8. Debugging `aws cloudformation deploy` Parameter Issues
+
+**Symptom:**
+Executing `aws cloudformation deploy ... --parameters file:///path/to/params.json ...` fails with an error like: `Unknown options: --parameters,file:///path/to/params.json`.
+This can happen both within a script and when running the exact same command manually in the terminal.
+
+**Root Cause Investigation & Debugging Steps:**
+1.  **Verify `aws --version`**: Ensure you are using a modern version of AWS CLI v2. Older versions or v1 might have different parsing or bugs related to the `deploy` subcommand.
+2.  **Check for Aliases/Functions**: In your shell, run `alias aws` and `type aws` (or `whence -v aws` for zsh). While in our specific troubleshooting this wasn't the cause, it's a common reason for AWS CLI commands behaving unexpectedly.
+3.  **Manual Execution**: The most crucial step is to construct the *exact* command the script is trying to run (echo it from the script with an `exit` before execution) and run it manually in your terminal. If it fails manually, the issue is likely with the AWS CLI installation/version or a very subtle shell environment interaction, not the script itself.
+
+**Workaround/Solution if `deploy` remains problematic:**
+If `aws cloudformation deploy` consistently fails to parse the `--parameters file://...` argument correctly in your environment, switch to using the more fundamental `aws cloudformation create-stack` and `aws cloudformation update-stack` commands.
+
+-   **Check Stack Existence**: First, check if the stack already exists:
+    ```bash
+    if ! aws cloudformation describe-stacks --stack-name YOUR_STACK_NAME ... > /dev/null 2>&1; then
+        # Stack does not exist, use create-stack
+    else
+        # Stack exists, use update-stack
+    fi
+    ```
+-   **`create-stack` / `update-stack` Syntax**:
+    Both commands accept the `--parameters file:///path/to/params.json` syntax. They also require `--template-body file:///path/to/template.yaml` (if the template is local) and `--capabilities CAPABILITY_NAMED_IAM` (if your template creates IAM resources with custom names).
+    ```bash
+    # Example create-stack:
+    aws cloudformation create-stack \
+        --stack-name YOUR_STACK_NAME \
+        --template-body file://infrastructure-aws/cloudformation-template.yaml \
+        --parameters file:///tmp/your-params.json \
+        --capabilities CAPABILITY_NAMED_IAM \
+        --region YOUR_REGION --profile YOUR_PROFILE
+    
+    aws cloudformation wait stack-create-complete ...
+
+    # Example update-stack:
+    aws cloudformation update-stack \
+        --stack-name YOUR_STACK_NAME \
+        --template-body file://infrastructure-aws/cloudformation-template.yaml \
+        --parameters file:///tmp/your-params.json \
+        --capabilities CAPABILITY_NAMED_IAM \
+        --region YOUR_REGION --profile YOUR_PROFILE
+        
+    aws cloudformation wait stack-update-complete ...
+    ```
+-   **Error Handling**: `update-stack` might return an error if no updates are to be performed. Your script should handle this gracefully (it's not a failure of the deployment itself).
+
+**Why this might work when `deploy` doesn't:**
+`aws cloudformation deploy` is a higher-level convenience command that internally performs steps similar to `package`, `create-stack`/`update-stack`, and `create-change-set`/`execute-change-set`. It's possible that its argument parsing, especially for compound arguments like `file://...`, is more sensitive to certain CLI versions or shell environments than the more direct `create-stack` and `update-stack` commands.
+
+In our project, switching `scripts/deploy.sh` to use this `create-stack`/`update-stack` logic resolved persistent "Unknown options: --parameters" errors encountered with `aws cloudformation deploy`. 

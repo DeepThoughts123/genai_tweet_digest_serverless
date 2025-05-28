@@ -175,6 +175,8 @@ Resources:
           SUBSCRIBERS_TABLE: !Ref SubscribersTable
           TWITTER_BEARER_TOKEN: !Ref TwitterBearerToken
           GEMINI_API_KEY: !Ref GeminiApiKey
+          FROM_EMAIL: !Ref FromEmail
+          API_BASE_URL: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
       Timeout: 30
       MemorySize: 256
 
@@ -220,6 +222,7 @@ Resources:
           S3_BUCKET: !Ref DataBucket
           SUBSCRIBERS_TABLE: !Ref SubscribersTable
           FROM_EMAIL: !Ref FromEmail
+          API_BASE_URL: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
       Timeout: 30
       MemorySize: 256
 
