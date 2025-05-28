@@ -410,4 +410,98 @@ curl -X POST https://whkkx3sqe8.execute-api.us-east-1.amazonaws.com/production/s
 # Test weekly digest (manual trigger)
 echo '{"source": "manual", "detail-type": "Manual Trigger"}' > /tmp/digest_payload.json
 zsh -d -f -c "export AWS_PROFILE=personal && aws lambda invoke --function-name genai-tweets-digest-weekly-digest-production --payload file:///tmp/digest_payload.json --region us-east-1 /tmp/digest_response.json --cli-binary-format raw-in-base64-out | cat"
-``` 
+```
+
+## 8. CloudFormation Naming Conflicts (Critical for Parallel Stacks)
+
+### Problem: Stack Creation Fails with "already exists" or "Export ... already exported" Errors
+
+**Scenario:** Attempting to deploy a new CloudFormation stack (e.g., for testing or a new environment that shares the same `Environment` parameter like "production") fails with errors indicating that S3 buckets, DynamoDB tables, API Gateway names, Lambda function names, or CloudFormation Output Export names already exist.
+
+**Example Errors from Stack Events:**
+- `ROLLBACK_IN_PROGRESS | Export with name genai-tweets-digest-website-bucket-production is already exported by stack genai-tweets-digest-production.`
+- `DataBucket: CREATE_FAILED | genai-tweets-digest-data-production-855450210814 already exists in stack arn:aws:cloudformation:...:stack/genai-tweets-digest-production/...`
+- `SubscribersTable: CREATE_FAILED | genai-tweets-digest-subscribers-production already exists ...`
+
+**Root Cause:**
+CloudFormation requires certain resource names and all Output Export names to be unique within an AWS Region and account.
+1.  **Physical Resource Names:** If the `infrastructure-aws/cloudformation-template.yaml` defines explicit names for resources like S3 `BucketName`, DynamoDB `TableName`, API Gateway `Name`, Lambda `FunctionName`, IAM `RoleName`, or EventBridge Rule `Name` based *only* on parameters like `${ProjectName}` and `${Environment}`, deploying multiple stacks with the same values for these parameters will cause naming collisions.
+2.  **Output Export Names:** Similarly, if `Outputs[*].Export.Name` in the template is based only on `${ProjectName}` and `${Environment}`, these will also collide.
+
+Our deployment scripts (`deploy.sh` and `deploy-optimized.sh`) use a `STACK_NAME` environment variable (often including a timestamp for uniqueness like `genai-tweets-digest-opt-YYYYMMDD-HHMMSS`) for the CloudFormation stack itself. However, if the *internal* resource names and export names aren't also made unique based on this stack name (or another unique identifier), conflicts will occur when the `Environment` parameter (e.g., "production") is the same across these different stack deployments.
+
+### Solution: Ensure Uniqueness with `${AWS::StackName}`
+
+The most robust solution is to modify `infrastructure-aws/cloudformation-template.yaml` to use the CloudFormation pseudo parameter `${AWS::StackName}` for all globally or regionally unique resource names and export names. This ensures that every resource and export tied to a specific stack instance will have a unique name automatically.
+
+**Modifications in `infrastructure-aws/cloudformation-template.yaml`:**
+
+1.  **Physical Resource Names:**
+    *   S3 Buckets (`DataBucket`, `WebsiteBucket`):
+        ```yaml
+        Properties:
+          BucketName: !Sub "${AWS::StackName}-data" 
+        # (and similarly for -website)
+        ```
+    *   DynamoDB Table (`SubscribersTable`):
+        ```yaml
+        Properties:
+          TableName: !Sub "${AWS::StackName}-subscribers"
+        ```
+    *   API Gateway (`ApiGateway`):
+        ```yaml
+        Properties:
+          Name: !Sub "${AWS::StackName}-api"
+        ```
+    *   Lambda Functions (`SubscriptionFunction`, `WeeklyDigestFunction`, etc.):
+        ```yaml
+        Properties:
+          FunctionName: !Sub "${AWS::StackName}-subscription" 
+        # (and similarly for other functions)
+        ```
+    *   IAM Role (`LambdaExecutionRole`):
+        ```yaml
+        Properties:
+          RoleName: !Sub "${AWS::StackName}-lambda-role"
+        ```
+    *   EventBridge Rule (`WeeklyDigestSchedule`):
+        ```yaml
+        Properties:
+          Name: !Sub "${AWS::StackName}-digest-schedule"
+        ```
+
+2.  **Output Export Names:**
+    For every item in the `Outputs:` section:
+    ```yaml
+    Outputs:
+      SomeOutput:
+        Description: ...
+        Value: ...
+        Export:
+          Name: !Sub "${AWS::StackName}-some-output-suffix"
+    ```
+    Example for `WebsiteBucketName`:
+    ```yaml
+    WebsiteBucketName:
+      Description: Name of the S3 bucket for website hosting
+      Value: !Ref WebsiteBucket
+      Export:
+        Name: !Sub "${AWS::StackName}-website-bucket"
+    ```
+
+**Deployment Script Considerations (`deploy.sh`, `deploy-optimized.sh`):**
+- The scripts should set a unique `STACK_NAME` environment variable (e.g., `export STACK_NAME="project-env-$(date +%Y%m%d-%H%M%S)"`).
+- The `deploy.sh` script uses this `STACK_NAME` (passed as `CFN_STACK_NAME`) for the `aws cloudformation create-stack/update-stack` calls.
+- CloudFormation then uses this unique stack name (accessible via `${AWS::StackName}`) to generate unique physical resource names and export names as defined in the template.
+
+**Benefits of this approach:**
+- Allows multiple independent instances of the application (e.g., for different feature branches, testing, or even multiple production-like tenants if designed that way) to be deployed in the same AWS account/region without naming conflicts.
+- Simplifies cleanup, as deleting the CloudFormation stack will remove all uniquely named resources tied to it.
+
+**Important Note:** If you intend for an update to *replace* an existing environment (e.g., a new version of "production" replacing the old "production"), you would typically update the existing stack. If you want a blue/green deployment or a fresh parallel environment, then unique naming driven by a unique stack name is essential.
+
+echo -e "${GREEN}🎉 Optimized Lambda packaging & CloudFormation deployment process initiated!${NC}"
+echo -e "${YELLOW}�� Next Steps:${NC}"
+echo "  - Monitor CloudFormation stack creation in AWS console."
+echo "  - After stack is created, verify Lambda functions and API Gateway endpoints."
+echo "  - Test functionality (e.g., subscription, email verification)." 

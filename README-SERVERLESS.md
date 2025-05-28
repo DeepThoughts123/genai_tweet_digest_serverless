@@ -45,46 +45,53 @@ This is a **cost-optimized serverless version** of the GenAI Tweets Digest that 
 
 ### 1. Set Environment Variables
 
+Ensure your `.env` file in the project root is configured. Key variables:
 ```bash
-# Set AWS Profile (use 'personal' profile for this project)
-export AWS_PROFILE=personal
+# .env (Example)
+AWS_PROFILE=personal
+AWS_REGION=us-east-1
+STACK_NAME=genai-tweets-digest-production # Default stack for production updates
+ENVIRONMENT=production # Usually tied to the stack
 
-# Set API keys and configuration
-export TWITTER_BEARER_TOKEN="your_twitter_bearer_token"
-export GEMINI_API_KEY="your_gemini_api_key"
-export FROM_EMAIL="your_verified_ses_email@domain.com"
-export TO_EMAIL="your_verified_ses_email@domain.com"  # For testing in SES sandbox mode
-export AWS_REGION="us-east-1"  # Optional, defaults to us-east-1
-
-# Verify AWS credentials are working
-aws sts get-caller-identity
+TWITTER_BEARER_TOKEN="your_twitter_bearer_token"
+GEMINI_API_KEY="your_gemini_api_key"
+FROM_EMAIL="your_verified_ses_email@domain.com"
+TO_EMAIL="your_verified_ses_email@domain.com"
 ```
 
-**📦 Important**: For all pip installations in this project, always use:
+**Important Notes:**
+- The `STACK_NAME` in `.env` should point to your primary, stable stack (e.g., `genai-tweets-digest-production`).
+- When deploying, scripts will source this `.env` file.
+- For deploying a new, parallel stack (e.g., for testing), you can temporarily override `STACK_NAME` by exporting it in your terminal before running the script: `export STACK_NAME="my-test-stack-$(date +%Y%m%d-%H%M%S)"`.
+
+### 2. Deploy Infrastructure & Updates
+
+**Recommended Script**: `./scripts/deploy-optimized.sh`
+This script always builds optimized Lambda packages with function-specific dependencies and then calls the main `deploy.sh` script to handle the CloudFormation deployment and Lambda updates.
+
+**To Update Your Main Production/Stable Stack (defined by `STACK_NAME` in `.env`):**
 ```bash
-pip install --index-url https://pypi.org/simple package-name
+# Ensures STACK_NAME from .env is used, builds optimized packages, and updates the existing stack.
+./scripts/deploy-optimized.sh
 ```
 
-**🐍 Virtual Environment**: Always activate the virtual environment for local development:
+**To Deploy a NEW, Parallel Stack (e.g., for testing, staging, or a feature branch):**
 ```bash
-source .venv311/bin/activate
+# This creates a completely new, isolated set of resources.
+export STACK_NAME="your-unique-stack-name-$(date +%Y%m%d-%H%M%S)" # Example unique name
+./scripts/deploy-optimized.sh
 ```
 
-**📧 SES Configuration**: Both `FROM_EMAIL` and `TO_EMAIL` must be verified in Amazon SES. In sandbox mode (default), both sender and recipient emails must be verified. The `TO_EMAIL` variable is useful for testing with a known verified email address.
+**What the script does:**
+- ✅ **Optimized Lambda Packaging**: Builds small, function-specific .zip files.
+- ✅ **CloudFormation Deployment**:
+    - If `STACK_NAME` doesn't exist, it creates a new stack.
+    - If `STACK_NAME` exists, it updates the existing stack (applies infrastructure changes from `cloudformation-template.yaml` if any).
+- ✅ **Lambda Function Code Update**: Uploads the newly built .zip files to the corresponding Lambda functions in the target stack.
+- ✅ **Configuration Upload**: Uploads `data/accounts.json` (if the target data bucket exists and matches expectations).
+- ✅ **Displays Outputs**: Shows API Gateway URLs, bucket names, etc., for the deployed/updated stack.
 
-### 2. Deploy Infrastructure
-
-```bash
-# Deploy everything with one command
-./scripts/deploy.sh
-```
-
-This script will:
-- ✅ Package Lambda functions
-- ✅ Deploy CloudFormation stack
-- ✅ Update function code
-- ✅ Upload configuration to S3
-- ✅ Display deployment outputs
+*(The older `./scripts/deploy.sh` can still be run directly, but it will use a monolithic `requirements.txt` for packaging unless `OPTIMIZED_BUILD_COMPLETE` is set by `deploy-optimized.sh`)*
 
 ### 3. Setup Frontend
 
@@ -98,10 +105,10 @@ This script will:
 After deployment, upload your static website to the S3 bucket:
 
 ```bash
-# Get bucket name from CloudFormation outputs
+# Get bucket name from CloudFormation outputs (replace your-actual-stack-name with the STACK_NAME you deployed/updated)
 WEBSITE_BUCKET=$(aws cloudformation describe-stacks \
-  --stack-name genai-tweets-digest-production \
-  --query 'Stacks[0].Outputs[?OutputKey==`WebsiteBucketName`].OutputValue' \
+  --stack-name your-actual-stack-name \
+  --query "Stacks[0].Outputs[?OutputKey==\`WebsiteBucketName\`].OutputValue" \
   --output text)
 
 # Upload static files
@@ -458,26 +465,24 @@ If you encounter issues:
 
 For detailed implementation guidance and lessons learned:
 
-- **[Stack Management Guide](docs/STACK_MANAGEMENT_GUIDE.md)** - ✅ **NEW** - Comprehensive guide for CloudFormation stack deletion, S3 cleanup, and troubleshooting DELETE_FAILED states
-- **[Deployment Workarounds](docs/DEPLOYMENT_WORKAROUNDS.md)** - Updated with Lambda package optimization, SES configuration, and critical deployment lessons
-- **[Development Setup Guide](docs/DEVELOPMENT_SETUP.md)** - Updated with email verification lessons and virtual environment best practices
-- **[Email Verification Setup](docs/EMAIL_VERIFICATION_SETUP.md)** - Updated with implementation lessons, deployment challenges, and solutions
-- **[Email Verification Testing Results](docs/EMAIL_VERIFICATION_TESTING_RESULTS.md)** - ✅ **NEW** - Complete end-to-end testing validation results
-- **[AWS CLI Best Practices](docs/AWS_CLI_BEST_PRACTICES.md)** - Updated with Lambda packaging, CloudFormation, and deployment lessons
-- **[E2E Testing Guide](docs/E2E_TESTING_PLAN.md)** - Comprehensive testing strategy and implementation
-- **[Implementation Progress](docs/IMPLEMENTATION_PROGRESS.md)** - Updated with email verification completion status
+- **[Stack Management Guide](docs/STACK_MANAGEMENT_GUIDE.md)** - Managing stacks, deletion, cleanup, troubleshooting.
+- **[Lambda Optimization Strategy](docs/LAMBDA_OPTIMIZATION_STRATEGY.md)** - Function-specific dependencies, lazy loading, `deploy-optimized.sh` script.
+- **[Deployment Workarounds](docs/DEPLOYMENT_WORKAROUNDS.md)** - Lambda packaging, SES config, CloudFormation naming conflicts, critical deployment lessons.
+- **[AWS CLI Best Practices](docs/AWS_CLI_BEST_PRACTICES.md)** - Shell environment, CloudFormation tips, Lambda packaging details.
 
 ### Recent Documentation Updates
 
 The documentation has been enhanced with lessons learned from production deployments, including:
 
-- **📋 Complete Stack Deletion Procedures** - Step-by-step guide for safely deleting CloudFormation stacks and handling S3 cleanup
-- **📦 Lambda Package Size Optimization** - Reducing package sizes from 150MB+ to 15-46MB using manylinux wheels and minimal dependencies
-- **📧 SES Email Configuration Management** - Handling missing environment variables and sandbox mode requirements
-- **🔧 Environment Variable Best Practices** - Including TO_EMAIL for testing and proper SES configuration
-- **🛠️ CloudFormation Template Management** - Adding new Lambda functions and API Gateway endpoints
-- **🐚 Shell Environment Workarounds** - Using clean shell execution for reliable AWS CLI operations
-- **✅ Production Deployment Validation** - Real-world testing workflows and troubleshooting guides
+- **🚀 Optimized Deployment Flow**: Using `deploy-optimized.sh` for smaller Lambda packages and flexible stack targeting (`STACK_NAME` in `.env` or via export).
+- **🏷️ CloudFormation Naming Uniqueness**: Using `${AWS::StackName}` for physical resources and output exports to allow parallel stack deployments.
+- **📋 Complete Stack Deletion Procedures**: Step-by-step guide for safely deleting CloudFormation stacks and handling S3 cleanup.
+- **📦 Lambda Package Size Optimization**: Reducing package sizes from 150MB+ to 15-46MB using manylinux wheels and minimal dependencies
+- **📧 SES Email Configuration Management**: Handling missing environment variables and sandbox mode requirements
+- **🔧 Environment Variable Best Practices**: Including TO_EMAIL for testing and proper SES configuration
+- **🛠️ CloudFormation Template Management**: Adding new Lambda functions and API Gateway endpoints
+- **🐚 Shell Environment Workarounds**: Using clean shell execution for reliable AWS CLI operations
+- **✅ Production Deployment Validation**: Real-world testing workflows and troubleshooting guides
 
 ---
 

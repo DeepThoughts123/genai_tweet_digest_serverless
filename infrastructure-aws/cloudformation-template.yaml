@@ -38,7 +38,10 @@ Resources:
   DataBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "${ProjectName}-data-${Environment}-${AWS::AccountId}"
+      # Using ${AWS::StackName} ensures this bucket name is unique per stack deployment,
+      # allowing parallel stacks (e.g., for different environments or testing)
+      # without S3 bucket name collisions.
+      BucketName: !Sub "${AWS::StackName}-data"
       VersioningConfiguration:
         Status: Enabled
       PublicAccessBlockConfiguration:
@@ -56,7 +59,7 @@ Resources:
   WebsiteBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "${ProjectName}-website-${Environment}-${AWS::AccountId}"
+      BucketName: !Sub "${AWS::StackName}-website"
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: error.html
@@ -83,7 +86,8 @@ Resources:
   SubscribersTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub "${ProjectName}-subscribers-${Environment}"
+      # Using ${AWS::StackName} ensures this table name is unique per stack deployment.
+      TableName: !Sub "${AWS::StackName}-subscribers"
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: subscriber_id
@@ -103,7 +107,7 @@ Resources:
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "${ProjectName}-lambda-role-${Environment}-${AWS::AccountId}"
+      RoleName: !Sub "${AWS::StackName}-lambda-role"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -156,7 +160,7 @@ Resources:
   SubscriptionFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub "${ProjectName}-subscription-${Environment}"
+      FunctionName: !Sub "${AWS::StackName}-subscription"
       Runtime: python3.11
       Handler: lambda_function.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
@@ -178,7 +182,7 @@ Resources:
   WeeklyDigestFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub "${ProjectName}-weekly-digest-${Environment}"
+      FunctionName: !Sub "${AWS::StackName}-weekly-digest"
       Runtime: python3.11
       Handler: lambda_function.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
@@ -202,7 +206,7 @@ Resources:
   EmailVerificationFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub "${ProjectName}-email-verification-${Environment}"
+      FunctionName: !Sub "${AWS::StackName}-email-verification"
       Runtime: python3.11
       Handler: lambda_function.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
@@ -223,7 +227,7 @@ Resources:
   UnsubscribeFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub "${ProjectName}-unsubscribe-${Environment}"
+      FunctionName: !Sub "${AWS::StackName}-unsubscribe"
       Runtime: python3.11
       Handler: lambda_function.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
@@ -244,7 +248,7 @@ Resources:
   ApiGateway:
     Type: AWS::ApiGateway::RestApi
     Properties:
-      Name: !Sub "${ProjectName}-api-${Environment}"
+      Name: !Sub "${AWS::StackName}-api"
       Description: API for GenAI Tweets Digest
       EndpointConfiguration:
         Types:
@@ -393,7 +397,7 @@ Resources:
   WeeklyDigestSchedule:
     Type: AWS::Events::Rule
     Properties:
-      Name: !Sub "${ProjectName}-digest-schedule-${Environment}"
+      Name: !Sub "${AWS::StackName}-digest-schedule"
       Description: Trigger digest generation every 30 minutes for testing
       ScheduleExpression: "cron(*/30 * * * ? *)"  # Every 30 minutes for testing
       State: ENABLED
@@ -448,40 +452,42 @@ Outputs:
     Description: URL of the static website
     Value: !Sub "https://${CloudFrontDistribution.DomainName}"
     Export:
-      Name: !Sub "${ProjectName}-website-url-${Environment}"
+      # Using ${AWS::StackName} ensures this export name is unique per stack deployment,
+      # preventing conflicts when multiple stacks are deployed in the same region/account.
+      Name: !Sub "${AWS::StackName}-website-url"
 
   ApiGatewayURL:
     Description: URL of the API Gateway
     Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
     Export:
-      Name: !Sub "${ProjectName}-api-url-${Environment}"
+      Name: !Sub "${AWS::StackName}-api-url"
 
   SubscriptionEndpoint:
     Description: Subscription API endpoint
     Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/subscribe"
     Export:
-      Name: !Sub "${ProjectName}-subscription-endpoint-${Environment}"
+      Name: !Sub "${AWS::StackName}-subscription-endpoint"
 
   DataBucketName:
     Description: Name of the S3 bucket for data storage
     Value: !Ref DataBucket
     Export:
-      Name: !Sub "${ProjectName}-data-bucket-${Environment}"
+      Name: !Sub "${AWS::StackName}-data-bucket"
 
   WebsiteBucketName:
     Description: Name of the S3 bucket for website hosting
     Value: !Ref WebsiteBucket
     Export:
-      Name: !Sub "${ProjectName}-website-bucket-${Environment}"
+      Name: !Sub "${AWS::StackName}-website-bucket"
 
   SubscribersTableName:
     Description: Name of the DynamoDB table for subscribers
     Value: !Ref SubscribersTable
     Export:
-      Name: !Sub "${ProjectName}-subscribers-table-${Environment}"
+      Name: !Sub "${AWS::StackName}-subscribers-table"
 
   CloudFrontDistributionId:
     Description: CloudFront Distribution ID
     Value: !Ref CloudFrontDistribution
     Export:
-      Name: !Sub "${ProjectName}-cloudfront-id-${Environment}" 
+      Name: !Sub "${AWS::StackName}-cloudfront-id" 
