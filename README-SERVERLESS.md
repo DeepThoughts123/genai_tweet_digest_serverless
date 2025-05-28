@@ -465,6 +465,7 @@ If you encounter issues:
 
 For detailed implementation guidance and lessons learned:
 
+- **[Schedule Management Guide](docs/SCHEDULE_MANAGEMENT_GUIDE.md)** - Complete guide for manually managing digest generation schedules, including AWS CLI commands, ad-hoc testing, and CloudFormation updates.
 - **[Stack Management Guide](docs/STACK_MANAGEMENT_GUIDE.md)** - Managing stacks, deletion, cleanup, troubleshooting.
 - **[Lambda Optimization Strategy](docs/LAMBDA_OPTIMIZATION_STRATEGY.md)** - Function-specific dependencies, lazy loading, `deploy-optimized.sh` script.
 - **[Deployment Workarounds](docs/DEPLOYMENT_WORKAROUNDS.md)** - Lambda packaging, SES config, CloudFormation naming conflicts, critical deployment lessons.
