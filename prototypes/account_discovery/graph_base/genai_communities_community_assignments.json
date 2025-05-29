@@ -1,0 +1,82 @@
+{
+  "12345": {
+    "handle": "seed_12345",
+    "display_name": "Seed Account",
+    "community_id": 0,
+    "is_seed": true,
+    "verified": false,
+    "follower_count": 0
+  },
+  "101": {
+    "handle": "ylecun",
+    "display_name": "Yann LeCun",
+    "community_id": 1,
+    "is_seed": false,
+    "verified": true,
+    "follower_count": 500000
+  },
+  "102": {
+    "handle": "jeffdean",
+    "display_name": "Jeff Dean",
+    "community_id": 2,
+    "is_seed": false,
+    "verified": true,
+    "follower_count": 200000
+  },
+  "103": {
+    "handle": "fchollet",
+    "display_name": "François Chollet",
+    "community_id": 3,
+    "is_seed": false,
+    "verified": true,
+    "follower_count": 150000
+  },
+  "104": {
+    "handle": "goodfellow_ian",
+    "display_name": "Ian Goodfellow",
+    "community_id": 4,
+    "is_seed": false,
+    "verified": true,
+    "follower_count": 180000
+  },
+  "105": {
+    "handle": "karpathy",
+    "display_name": "Andrej Karpathy",
+    "community_id": 5,
+    "is_seed": false,
+    "verified": true,
+    "follower_count": 400000
+  },
+  "201": {
+    "handle": "sundarpichai",
+    "display_name": "Sundar Pichai",
+    "community_id": 6,
+    "is_seed": false,
+    "verified": true,
+    "follower_count": 5000000
+  },
+  "202": {
+    "handle": "satyanadella",
+    "display_name": "Satya Nadella",
+    "community_id": 7,
+    "is_seed": false,
+    "verified": true,
+    "follower_count": 3000000
+  },
+  "23456": {
+    "handle": "seed_23456",
+    "display_name": "Seed Account",
+    "community_id": 8,
+    "is_seed": true,
+    "verified": false,
+    "follower_count": 0
+  },
+  "34567": {
+    "handle": "seed_34567",
+    "display_name": "Seed Account",
+    "community_id": 9,
+    "is_seed": true,
+    "verified": false,
+    "follower_count": 0
+  }
+}

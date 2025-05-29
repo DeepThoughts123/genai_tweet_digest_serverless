@@ -1,0 +1,107 @@
+[
+  {
+    "account_id": "101",
+    "handle": "ylecun",
+    "display_name": "Yann LeCun",
+    "follower_count": 500000,
+    "verified": true,
+    "community_connections": {
+      "0": 1,
+      "8": 1,
+      "9": 1
+    },
+    "bridge_score": 1.0,
+    "is_global_bridge": true,
+    "is_local_bridge": false
+  },
+  {
+    "account_id": "102",
+    "handle": "jeffdean",
+    "display_name": "Jeff Dean",
+    "follower_count": 200000,
+    "verified": true,
+    "community_connections": {
+      "0": 1,
+      "8": 1,
+      "9": 1
+    },
+    "bridge_score": 1.0,
+    "is_global_bridge": true,
+    "is_local_bridge": false
+  },
+  {
+    "account_id": "103",
+    "handle": "fchollet",
+    "display_name": "François Chollet",
+    "follower_count": 150000,
+    "verified": true,
+    "community_connections": {
+      "0": 1,
+      "8": 1,
+      "9": 1
+    },
+    "bridge_score": 1.0,
+    "is_global_bridge": true,
+    "is_local_bridge": false
+  },
+  {
+    "account_id": "104",
+    "handle": "goodfellow_ian",
+    "display_name": "Ian Goodfellow",
+    "follower_count": 180000,
+    "verified": true,
+    "community_connections": {
+      "0": 1,
+      "8": 1,
+      "9": 1
+    },
+    "bridge_score": 1.0,
+    "is_global_bridge": true,
+    "is_local_bridge": false
+  },
+  {
+    "account_id": "105",
+    "handle": "karpathy",
+    "display_name": "Andrej Karpathy",
+    "follower_count": 400000,
+    "verified": true,
+    "community_connections": {
+      "0": 1,
+      "8": 1,
+      "9": 1
+    },
+    "bridge_score": 1.0,
+    "is_global_bridge": true,
+    "is_local_bridge": false
+  },
+  {
+    "account_id": "201",
+    "handle": "sundarpichai",
+    "display_name": "Sundar Pichai",
+    "follower_count": 5000000,
+    "verified": true,
+    "community_connections": {
+      "0": 1,
+      "8": 1,
+      "9": 1
+    },
+    "bridge_score": 1.0,
+    "is_global_bridge": true,
+    "is_local_bridge": false
+  },
+  {
+    "account_id": "202",
+    "handle": "satyanadella",
+    "display_name": "Satya Nadella",
+    "follower_count": 3000000,
+    "verified": true,
+    "community_connections": {
+      "0": 1,
+      "8": 1,
+      "9": 1
+    },
+    "bridge_score": 1.0,
+    "is_global_bridge": true,
+    "is_local_bridge": false
+  }
+]

@@ -1,0 +1,101 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+  <key id="d1" for="edge" attr.name="source_tier" attr.type="string" />
+  <key id="d0" for="edge" attr.name="weight" attr.type="double" />
+  <graph edgedefault="directed">
+    <node id="12345" />
+    <node id="101" />
+    <node id="102" />
+    <node id="103" />
+    <node id="104" />
+    <node id="105" />
+    <node id="201" />
+    <node id="202" />
+    <node id="23456" />
+    <node id="34567" />
+    <edge source="12345" target="101">
+      <data key="d0">3.0</data>
+      <data key="d1">TIER_1</data>
+    </edge>
+    <edge source="12345" target="102">
+      <data key="d0">3.0</data>
+      <data key="d1">TIER_1</data>
+    </edge>
+    <edge source="12345" target="103">
+      <data key="d0">3.0</data>
+      <data key="d1">TIER_1</data>
+    </edge>
+    <edge source="12345" target="104">
+      <data key="d0">3.0</data>
+      <data key="d1">TIER_1</data>
+    </edge>
+    <edge source="12345" target="105">
+      <data key="d0">3.0</data>
+      <data key="d1">TIER_1</data>
+    </edge>
+    <edge source="12345" target="201">
+      <data key="d0">3.0</data>
+      <data key="d1">TIER_1</data>
+    </edge>
+    <edge source="12345" target="202">
+      <data key="d0">3.0</data>
+      <data key="d1">TIER_1</data>
+    </edge>
+    <edge source="23456" target="101">
+      <data key="d0">3.0</data>
+      <data key="d1">TIER_1</data>
+    </edge>
+    <edge source="23456" target="102">
+      <data key="d0">3.0</data>
+      <data key="d1">TIER_1</data>
+    </edge>
+    <edge source="23456" target="103">
+      <data key="d0">3.0</data>
+      <data key="d1">TIER_1</data>
+    </edge>
+    <edge source="23456" target="104">
+      <data key="d0">3.0</data>
+      <data key="d1">TIER_1</data>
+    </edge>
+    <edge source="23456" target="105">
+      <data key="d0">3.0</data>
+      <data key="d1">TIER_1</data>
+    </edge>
+    <edge source="23456" target="201">
+      <data key="d0">3.0</data>
+      <data key="d1">TIER_1</data>
+    </edge>
+    <edge source="23456" target="202">
+      <data key="d0">3.0</data>
+      <data key="d1">TIER_1</data>
+    </edge>
+    <edge source="34567" target="101">
+      <data key="d0">2.0</data>
+      <data key="d1">TIER_2</data>
+    </edge>
+    <edge source="34567" target="102">
+      <data key="d0">2.0</data>
+      <data key="d1">TIER_2</data>
+    </edge>
+    <edge source="34567" target="103">
+      <data key="d0">2.0</data>
+      <data key="d1">TIER_2</data>
+    </edge>
+    <edge source="34567" target="104">
+      <data key="d0">2.0</data>
+      <data key="d1">TIER_2</data>
+    </edge>
+    <edge source="34567" target="105">
+      <data key="d0">2.0</data>
+      <data key="d1">TIER_2</data>
+    </edge>
+    <edge source="34567" target="201">
+      <data key="d0">2.0</data>
+      <data key="d1">TIER_2</data>
+    </edge>
+    <edge source="34567" target="202">
+      <data key="d0">2.0</data>
+      <data key="d1">TIER_2</data>
+    </edge>
+  </graph>
+</graphml>

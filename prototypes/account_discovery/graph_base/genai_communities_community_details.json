@@ -1,0 +1,148 @@
+[
+  {
+    "community_id": 0,
+    "size": 1,
+    "verification_rate": 0.0,
+    "avg_follower_count": 0.0,
+    "seed_accounts": [
+      "12345"
+    ],
+    "tier_distribution": {
+      "TIER_1": 1
+    },
+    "internal_edges": 0,
+    "external_edges": 7,
+    "suggested_topics": [],
+    "representative_accounts": []
+  },
+  {
+    "community_id": 1,
+    "size": 1,
+    "verification_rate": 1.0,
+    "avg_follower_count": 500000.0,
+    "seed_accounts": [],
+    "tier_distribution": {},
+    "internal_edges": 0,
+    "external_edges": 0,
+    "suggested_topics": [],
+    "representative_accounts": [
+      "101"
+    ]
+  },
+  {
+    "community_id": 2,
+    "size": 1,
+    "verification_rate": 1.0,
+    "avg_follower_count": 200000.0,
+    "seed_accounts": [],
+    "tier_distribution": {},
+    "internal_edges": 0,
+    "external_edges": 0,
+    "suggested_topics": [],
+    "representative_accounts": [
+      "102"
+    ]
+  },
+  {
+    "community_id": 3,
+    "size": 1,
+    "verification_rate": 1.0,
+    "avg_follower_count": 150000.0,
+    "seed_accounts": [],
+    "tier_distribution": {},
+    "internal_edges": 0,
+    "external_edges": 0,
+    "suggested_topics": [],
+    "representative_accounts": [
+      "103"
+    ]
+  },
+  {
+    "community_id": 4,
+    "size": 1,
+    "verification_rate": 1.0,
+    "avg_follower_count": 180000.0,
+    "seed_accounts": [],
+    "tier_distribution": {},
+    "internal_edges": 0,
+    "external_edges": 0,
+    "suggested_topics": [],
+    "representative_accounts": [
+      "104"
+    ]
+  },
+  {
+    "community_id": 5,
+    "size": 1,
+    "verification_rate": 1.0,
+    "avg_follower_count": 400000.0,
+    "seed_accounts": [],
+    "tier_distribution": {},
+    "internal_edges": 0,
+    "external_edges": 0,
+    "suggested_topics": [],
+    "representative_accounts": [
+      "105"
+    ]
+  },
+  {
+    "community_id": 6,
+    "size": 1,
+    "verification_rate": 1.0,
+    "avg_follower_count": 5000000.0,
+    "seed_accounts": [],
+    "tier_distribution": {},
+    "internal_edges": 0,
+    "external_edges": 0,
+    "suggested_topics": [],
+    "representative_accounts": [
+      "201"
+    ]
+  },
+  {
+    "community_id": 7,
+    "size": 1,
+    "verification_rate": 1.0,
+    "avg_follower_count": 3000000.0,
+    "seed_accounts": [],
+    "tier_distribution": {},
+    "internal_edges": 0,
+    "external_edges": 0,
+    "suggested_topics": [],
+    "representative_accounts": [
+      "202"
+    ]
+  },
+  {
+    "community_id": 8,
+    "size": 1,
+    "verification_rate": 0.0,
+    "avg_follower_count": 0.0,
+    "seed_accounts": [
+      "23456"
+    ],
+    "tier_distribution": {
+      "TIER_1": 1
+    },
+    "internal_edges": 0,
+    "external_edges": 7,
+    "suggested_topics": [],
+    "representative_accounts": []
+  },
+  {
+    "community_id": 9,
+    "size": 1,
+    "verification_rate": 0.0,
+    "avg_follower_count": 0.0,
+    "seed_accounts": [
+      "34567"
+    ],
+    "tier_distribution": {
+      "TIER_2": 1
+    },
+    "internal_edges": 0,
+    "external_edges": 7,
+    "suggested_topics": [],
+    "representative_accounts": []
+  }
+]
