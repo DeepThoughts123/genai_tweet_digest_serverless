@@ -1,0 +1,37 @@
+# Exploration folder gitignore
+
+# Environment files with sensitive API keys
+.env
+.env.local
+.env.production
+
+# Experiment results and outputs
+results/*.json
+results/*.csv
+results/*.txt
+*.log
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+venv/
+.venv/
+
+# API keys and credentials (if accidentally saved)
+*_credentials.py
+*_config.py
+
+# Jupyter notebooks checkpoints (if you add notebooks)
+.ipynb_checkpoints/
+
+# Temporary files
+temp_*
+tmp_*
+*.tmp
+
+# OS specific
+.DS_Store
+Thumbs.db 

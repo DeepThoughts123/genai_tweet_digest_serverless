@@ -31,23 +31,37 @@ class TestTweetFetcher(unittest.TestCase):
         mock_user = Mock()
         mock_user.data.id = "123456789"
         mock_client.get_user.return_value = mock_user
+        
+        # Create a more complete mock tweet with all required attributes
         mock_tweet = Mock()
         mock_tweet.id = "tweet123"
         mock_tweet.text = "Test tweet about AI"
         mock_tweet.author_id = "123456789"
         mock_tweet.created_at = datetime.now()
         mock_tweet.public_metrics = {"like_count": 10}
+        
+        # Add attributes expected by our enhanced fetching logic
+        mock_tweet.conversation_id = "conv123"
+        mock_tweet.referenced_tweets = None  # Not a retweet
+        
         mock_tweets_response = Mock()
         mock_tweets_response.data = [mock_tweet]
+        mock_tweets_response.includes = None  # No referenced tweets
         mock_client.get_users_tweets.return_value = mock_tweets_response
+        
+        # Mock the search_recent_tweets call for thread detection
+        mock_client.search_recent_tweets.return_value = Mock(data=None)
+        
         with patch('shared.tweet_services.config') as mock_config: # MODIFIED
             mock_config.twitter_bearer_token = "test_token"
             fetcher = TweetFetcher()
             tweets = fetcher.fetch_tweets(["testuser"])
+        
         self.assertEqual(len(tweets), 1)
         self.assertEqual(tweets[0]['id'], "tweet123")
         self.assertEqual(tweets[0]['text'], "Test tweet about AI")
         self.assertEqual(tweets[0]['username'], "testuser")
+        self.assertEqual(tweets[0]['conversation_id'], "conv123")
     
     @patch('shared.tweet_services.tweepy.Client') # MODIFIED
     def test_fetch_tweets_user_not_found(self, mock_client_class):
@@ -57,6 +71,10 @@ class TestTweetFetcher(unittest.TestCase):
         mock_user_response = Mock()
         mock_user_response.data = None
         mock_client.get_user.return_value = mock_user_response
+        
+        # Mock search functionality even though it won't be called
+        mock_client.search_recent_tweets.return_value = Mock(data=None)
+        
         with patch('shared.tweet_services.config') as mock_config: # MODIFIED
             mock_config.twitter_bearer_token = "test_token"
             fetcher = TweetFetcher()
@@ -69,11 +87,73 @@ class TestTweetFetcher(unittest.TestCase):
         mock_client = Mock()
         mock_client_class.return_value = mock_client
         mock_client.get_user.side_effect = Exception("API Error")
+        
+        # Mock search functionality even though it won't be called due to earlier error
+        mock_client.search_recent_tweets.return_value = Mock(data=None)
+        
         with patch('shared.tweet_services.config') as mock_config: # MODIFIED
             mock_config.twitter_bearer_token = "test_token"
             fetcher = TweetFetcher()
             tweets = fetcher.fetch_tweets(["testuser"])
         self.assertEqual(len(tweets), 0)
+    
+    @patch('shared.tweet_services.tweepy.Client') # MODIFIED
+    def test_fetch_tweets_thread_detection(self, mock_client_class):
+        """Test thread detection and reconstruction."""
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+        mock_user = Mock()
+        mock_user.data.id = "123456789"
+        mock_client.get_user.return_value = mock_user
+        
+        # Create first tweet in thread
+        mock_tweet1 = Mock()
+        mock_tweet1.id = "tweet1"
+        mock_tweet1.text = "This is the first tweet in a thread"
+        mock_tweet1.author_id = "123456789"
+        mock_tweet1.created_at = datetime.now()
+        mock_tweet1.public_metrics = {"like_count": 5}
+        mock_tweet1.conversation_id = "conv123"
+        mock_tweet1.referenced_tweets = None
+        
+        # Create second tweet in thread (found via search)
+        mock_tweet2 = Mock()
+        mock_tweet2.id = "tweet2"
+        mock_tweet2.text = "This is the second tweet in the same thread"
+        mock_tweet2.author_id = "123456789"
+        mock_tweet2.created_at = datetime.now() + timedelta(minutes=1)
+        mock_tweet2.public_metrics = {"like_count": 3}
+        mock_tweet2.conversation_id = "conv123"
+        mock_tweet2.referenced_tweets = None
+        
+        mock_tweets_response = Mock()
+        mock_tweets_response.data = [mock_tweet1]
+        mock_tweets_response.includes = None
+        mock_client.get_users_tweets.return_value = mock_tweets_response
+        
+        # Mock search to return the second tweet
+        mock_search_response = Mock()
+        mock_search_response.data = [mock_tweet2]
+        mock_client.search_recent_tweets.return_value = mock_search_response
+        
+        with patch('shared.tweet_services.config') as mock_config:
+            mock_config.twitter_bearer_token = "test_token"
+            fetcher = TweetFetcher()
+            tweets = fetcher.fetch_tweets(["testuser"])
+        
+        # Should get one result representing the thread
+        self.assertEqual(len(tweets), 1)
+        thread_tweet = tweets[0]
+        
+        # Check that it's marked as a thread
+        self.assertTrue(thread_tweet.get('is_thread', False))
+        self.assertEqual(thread_tweet.get('thread_tweet_count', 1), 2)
+        
+        # Check that the text contains both tweets
+        self.assertIn("first tweet", thread_tweet['text'])
+        self.assertIn("second tweet", thread_tweet['text'])
+        self.assertIn("[1/2]", thread_tweet['text'])
+        self.assertIn("[2/2]", thread_tweet['text'])
 
 class TestTweetCategorizer(unittest.TestCase):
     """Test the TweetCategorizer class."""

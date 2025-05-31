@@ -101,7 +101,13 @@ genai_tweets_digest_serverless/
 │   │   ├── config.py         # Centralized configuration management
 │   │   ├── dynamodb_service.py # DynamoDB operations and email validation
 │   │   ├── ses_service.py    # Amazon SES email service integration
-│   │   ├── tweet_services.py # Twitter API and Gemini AI integration
+│   │   ├── tweet_services.py # Enhanced Twitter API client and Gemini AI integration featuring:
+│   │   │    - Complete Text Extraction: Advanced handling of truncated tweets and full content retrieval
+│   │   │    - Thread Detection and Reconstruction: Automatically identifies and reconstructs multi-tweet threads from the same user
+│   │   │    - Full Retweet Text Expansion: Retrieves complete original tweet content for retweets using Twitter API expansions
+│   │   │    - Conversation Analysis: Uses conversation_id and search APIs to find related tweets and build complete context
+│   │   │    - Smart Categorization: AI-powered categorization using complete tweet content for improved accuracy
+│   │   │    - Professional Summarization: Generates summaries leveraging full thread context for better insights
 │   │   ├── email_verification_service.py # Email verification service
 │   │   └── unsubscribe_service.py # Unsubscribe functionality
 │   ├── subscription/         # Email subscription Lambda function
@@ -185,7 +191,13 @@ genai_tweets_digest_serverless/
 -   **`config.py`**: Centralized configuration management with environment variable handling
 -   **`dynamodb_service.py`**: DynamoDB operations, email validation, and subscriber management
 -   **`ses_service.py`**: Amazon SES integration with responsive HTML email templates
--   **`tweet_services.py`**: Twitter API client and Gemini AI integration for categorization/summarization
+-   **`tweet_services.py`**: Enhanced Twitter API client and Gemini AI integration featuring:
+    -   **Complete Text Extraction**: Advanced handling of truncated tweets and full content retrieval
+    -   **Thread Detection and Reconstruction**: Automatically identifies and reconstructs multi-tweet threads from the same user
+    -   **Full Retweet Text Expansion**: Retrieves complete original tweet content for retweets using Twitter API expansions
+    -   **Conversation Analysis**: Uses conversation_id and search APIs to find related tweets and build complete context
+    -   **Smart Categorization**: AI-powered categorization using complete tweet content for improved accuracy
+    -   **Professional Summarization**: Generates summaries leveraging full thread context for better insights
 -   **`email_verification_service.py`**: Double opt-in email verification with secure token management
 -   **`unsubscribe_service.py`**: Unsubscribe functionality with token-based security
 

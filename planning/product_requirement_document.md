@@ -66,13 +66,17 @@ Landing Page (S3/CloudFront) → Email Signup (API Gateway + Lambda) → Weekly 
 ### Backend Services (AWS Lambda Functions)
 
 #### Tweet Processing Pipeline
-**Requirement**: Automated content curation and analysis.
+**Requirement**: Automated content curation and analysis with enhanced text extraction.
 
 **Components**:
-- **Tweet Fetching (Lambda)**
-  - Retrieve tweets from past 7 days.
-  - Sources: Top ~200 influential GenAI accounts + viral content (configurable via S3).
-  - Twitter API v2 integration with rate limiting handled within Lambda.
+- **Enhanced Tweet Fetching (Lambda)**
+  - **Complete Text Extraction**: Retrieves full tweet content with advanced handling for truncated text
+  - **Thread Detection and Reconstruction**: Automatically identifies and reconstructs multi-tweet threads from the same user
+  - **Full Retweet Text**: Expands retweets to include complete original tweet content using referenced tweet data
+  - **Conversation Analysis**: Uses conversation_id to find related tweets and build complete context
+  - **Advanced API Integration**: Leverages Twitter API v2 expansions and search capabilities for comprehensive data
+  - Sources: Top ~200 influential GenAI accounts + viral content (configurable via S3)
+  - Twitter API v2 integration with intelligent rate limiting handled within Lambda
   
 - **Tweet Categorization (Lambda + Gemini 2.0 Flash)**
   - **Categories**:
@@ -81,14 +85,14 @@ Landing Page (S3/CloudFront) → Email Signup (API Gateway + Lambda) → Weekly 
     - Applications and case studies
     - Ethical discussions and regulations
     - Tools and resources
-  - Confidence scoring (0-1 scale).
-  - Intelligent prompt engineering.
+  - Confidence scoring (0-1 scale)
+  - Intelligent prompt engineering optimized for complete tweet content
 
 - **Content Summarization (Lambda + Gemini 2.0 Flash)**
-  - Category-based grouping and summarization.
-  - Professional tone suitable for all experience levels.
-  - 2-4 sentences per category.
-  - Newsletter-quality output.
+  - Category-based grouping and summarization using enhanced tweet data
+  - Professional tone suitable for all experience levels
+  - 2-4 sentences per category with improved context from complete tweets
+  - Newsletter-quality output leveraging full thread content
 
 #### Email System
 **Requirement**: Automated weekly digest distribution and subscription management.
