@@ -224,3 +224,12 @@ config/local.json
 /tmp/
 temp/
 test-data/
+
+# Exploration folder - ignore generated images and data files in feature subfolders
+exploration/*/visual_captures/
+exploration/*/*.png
+exploration/*/*.jpg
+exploration/*/*.jpeg
+exploration/*/metadata.json
+exploration/*/capture_metadata.json
+exploration/*/*_metadata.json

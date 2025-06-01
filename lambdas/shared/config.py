@@ -15,6 +15,12 @@ class LambdaConfig:
         self.twitter_bearer_token = os.getenv("TWITTER_BEARER_TOKEN")
         self.gemini_api_key = os.getenv("GEMINI_API_KEY")
         
+        # Twitter API v1.1 OAuth credentials (optional, for enhanced features)
+        self.twitter_consumer_key = os.getenv("TWITTER_CONSUMER_KEY")
+        self.twitter_consumer_secret = os.getenv("TWITTER_CONSUMER_SECRET")
+        self.twitter_access_token = os.getenv("TWITTER_ACCESS_TOKEN")
+        self.twitter_access_token_secret = os.getenv("TWITTER_ACCESS_TOKEN_SECRET")
+        
         # AWS Configuration
         self.aws_region = os.getenv("AWS_REGION", "us-east-1")
         

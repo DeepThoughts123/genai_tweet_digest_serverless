@@ -1,13 +1,22 @@
 # Environment variables template for GenAI Tweets Digest exploration scripts
 # Copy this content to a new file called .env and fill in your actual API keys
 
-# Required: Twitter API Bearer Token
-# Get this from https://developer.twitter.com/en/portal/dashboard
-TWITTER_BEARER_TOKEN=your_twitter_bearer_token_here
+# Twitter API Credentials
+# Get these from https://developer.twitter.com/en/portal/dashboard
+
+# Required: Twitter API v2 Bearer Token (for basic functionality)
+TWITTER_BEARER_TOKEN=your_bearer_token_here
+
+# Optional: Twitter API v1.1 OAuth Credentials (for enhanced URL expansion and content)
+# These provide significantly better URL entity data and potentially more complete tweet text
+TWITTER_CONSUMER_KEY=your_consumer_key_here
+TWITTER_CONSUMER_SECRET=your_consumer_secret_here
+TWITTER_ACCESS_TOKEN=your_access_token_here
+TWITTER_ACCESS_TOKEN_SECRET=your_access_token_secret_here
 
 # Optional: Google Gemini API Key (for AI categorization and summarization)  
 # Get this from https://ai.google.dev/
-GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_API_KEY=your_gemini_key_here
 
 # Optional: AWS Configuration (only needed for S3 operations)
 S3_BUCKET=your-test-bucket

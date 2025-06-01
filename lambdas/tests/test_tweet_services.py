@@ -43,6 +43,7 @@ class TestTweetFetcher(unittest.TestCase):
         # Add attributes expected by our enhanced fetching logic
         mock_tweet.conversation_id = "conv123"
         mock_tweet.referenced_tweets = None  # Not a retweet
+        mock_tweet.entities = None  # No URLs to expand
         
         mock_tweets_response = Mock()
         mock_tweets_response.data = [mock_tweet]
@@ -126,6 +127,10 @@ class TestTweetFetcher(unittest.TestCase):
         mock_tweet2.conversation_id = "conv123"
         mock_tweet2.referenced_tweets = None
         
+        # Add entities to both tweets
+        mock_tweet1.entities = None
+        mock_tweet2.entities = None
+        
         mock_tweets_response = Mock()
         mock_tweets_response.data = [mock_tweet1]
         mock_tweets_response.includes = None
@@ -154,6 +159,58 @@ class TestTweetFetcher(unittest.TestCase):
         self.assertIn("second tweet", thread_tweet['text'])
         self.assertIn("[1/2]", thread_tweet['text'])
         self.assertIn("[2/2]", thread_tweet['text'])
+    
+    @patch('shared.tweet_services.tweepy.Client') # MODIFIED
+    def test_fetch_tweets_url_expansion(self, mock_client_class):
+        """Test URL expansion functionality."""
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+        mock_user = Mock()
+        mock_user.data.id = "123456789"
+        mock_client.get_user.return_value = mock_user
+        
+        # Create mock tweet with URL
+        mock_tweet = Mock()
+        mock_tweet.id = "tweet123"
+        mock_tweet.text = "Check out this paper: https://t.co/shortlink"
+        mock_tweet.author_id = "123456789"
+        mock_tweet.created_at = datetime.now()
+        mock_tweet.public_metrics = {"like_count": 10}
+        mock_tweet.conversation_id = "conv123"
+        mock_tweet.referenced_tweets = None
+        
+        # Mock entities with URL expansion data
+        mock_url_entity = Mock()
+        mock_url_entity.url = "https://t.co/shortlink"
+        mock_url_entity.expanded_url = "https://arxiv.org/abs/2023.12345"
+        mock_url_entity.display_url = "arxiv.org/abs/2023.12345"
+        mock_url_entity.unwound_url = "https://arxiv.org/abs/2023.12345"
+        
+        mock_entities = Mock()
+        mock_entities.urls = [mock_url_entity]
+        mock_tweet.entities = mock_entities
+        
+        mock_tweets_response = Mock()
+        mock_tweets_response.data = [mock_tweet]
+        mock_tweets_response.includes = None
+        mock_client.get_users_tweets.return_value = mock_tweets_response
+        
+        # Mock search for no additional tweets
+        mock_client.search_recent_tweets.return_value = Mock(data=None)
+        
+        with patch('shared.tweet_services.config') as mock_config:
+            mock_config.twitter_bearer_token = "test_token"
+            fetcher = TweetFetcher()
+            tweets = fetcher.fetch_tweets(["testuser"])
+        
+        # Should get one result with expanded URL
+        self.assertEqual(len(tweets), 1)
+        tweet = tweets[0]
+        
+        # Check that URL was expanded
+        self.assertIn("arxiv.org/abs/2023.12345", tweet['text'])
+        self.assertIn("https://arxiv.org/abs/2023.12345", tweet['text'])
+        self.assertNotEqual(tweet['text'], "Check out this paper: https://t.co/shortlink")
 
 class TestTweetCategorizer(unittest.TestCase):
     """Test the TweetCategorizer class."""

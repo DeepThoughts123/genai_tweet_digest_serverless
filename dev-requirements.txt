@@ -15,4 +15,10 @@ mypy>=0.900
 
 # Development utilities
 ipython>=8.0.0
-jupyter>=1.0.0 
+jupyter>=1.0.0
+
+# Visual capture dependencies
+selenium>=4.15.0
+pillow>=10.0.0
+webdriver-manager>=4.0.0
+python-dotenv>=1.0.0 
