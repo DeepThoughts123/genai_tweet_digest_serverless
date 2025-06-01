@@ -68,6 +68,7 @@ genai_tweets_digest_serverless/
 │   └── accounts.json         # List of Twitter accounts to monitor
 ├── docs/                     # Comprehensive project documentation
 │   ├── CODEBASE_STRUCTURE.md # This file
+│   ├── visual_tweet_capture_service.md # Visual Tweet Capture Service documentation
 │   ├── PRODUCTION_DEPLOYMENT_SUCCESS.md # Production validation results
 │   ├── IMPLEMENTATION_PROGRESS.md # Complete implementation tracking
 │   ├── AWS_CLI_BEST_PRACTICES.md # AWS CLI best practices and lessons learned
@@ -85,6 +86,8 @@ genai_tweets_digest_serverless/
 │   ├── SECURITY_RECOMMENDATIONS.md # Security best practices
 │   ├── AMAZON_SES_INTEGRATION.md # SES integration documentation
 │   └── serverless-migration-plan.md # Initial serverless migration plan
+├── exploration/              # Research and development
+│   └── visual_tweet_capture/ # Visual tweet capture development & testing
 ├── frontend/                 # Original Next.js development source
 │   ├── src/                  # React/Next.js source code
 │   ├── package.json          # Node.js dependencies
@@ -108,6 +111,7 @@ genai_tweets_digest_serverless/
 │   │   │    - Conversation Analysis: Uses conversation_id and search APIs to find related tweets and build complete context
 │   │   │    - Smart Categorization: AI-powered categorization using complete tweet content for improved accuracy
 │   │   │    - Professional Summarization: Generates summaries leveraging full thread context for better insights
+│   │   ├── visual_tweet_capture_service.py # Production-ready visual tweet capture with S3 integration
 │   │   ├── email_verification_service.py # Email verification service
 │   │   └── unsubscribe_service.py # Unsubscribe functionality
 │   ├── subscription/         # Email subscription Lambda function
@@ -201,7 +205,24 @@ genai_tweets_digest_serverless/
 -   **`email_verification_service.py`**: Double opt-in email verification with secure token management
 -   **`unsubscribe_service.py`**: Unsubscribe functionality with token-based security
 
-### 2. Static Frontend (`frontend-static/`)
+### 2. Visual Tweet Capture Service (`lambdas/shared/visual_tweet_capture_service.py`)
+-   **Purpose**: Production-ready service for capturing visual screenshots of Twitter content
+-   **Features**:
+    -   **Date-based S3 Organization**: Automatic folder structure with YYYY-MM-DD/account/content_type_id
+    -   **Content Type Detection**: Automatically detects and organizes threads (convo_), individual tweets (tweet_), and retweets (retweet_)
+    -   **Account-based Organization**: Separate folders for each Twitter account within date folders
+    -   **Configurable Browser Settings**: Adjustable zoom percentage and capture parameters
+    -   **Intelligent Scrolling**: Avoids duplicate screenshots with smart scrolling logic
+    -   **Comprehensive Error Handling**: Automatic cleanup, retry logic, and detailed logging
+    -   **Clean Metadata Structure**: No duplication, complete capture information with S3 references
+    -   **Production Testing**: Validated with real accounts (@minchoi, @AndrewYNg) - 100% success rate
+-   **S3 Integration**:
+    -   Automatic upload of screenshots with timestamped filenames
+    -   Metadata files in JSON format with complete capture details
+    -   Account summaries with success metrics and folder references
+    -   Environment variable configuration (`S3_BUCKET_TWEET_CAPTURED`)
+
+### 3. Static Frontend (`frontend-static/`)
 -   **Technology**: Next.js static export with React components
 -   **Hosting**: Amazon S3 with CloudFront CDN distribution
 -   **Features**:
@@ -211,7 +232,7 @@ genai_tweets_digest_serverless/
     -   Error handling for all subscription scenarios
     -   Mobile-optimized responsive design
 
-### 3. Data Storage and Configuration
+### 4. Data Storage and Configuration
 
 #### **DynamoDB Tables**
 -   **Subscribers Table**: Stores subscriber information with verification status
@@ -225,7 +246,7 @@ genai_tweets_digest_serverless/
 -   **Configuration files**: `accounts.json` with Twitter accounts to monitor
 -   **Static website hosting**: Frontend files with CloudFront distribution
 
-### 4. Infrastructure as Code (`infrastructure-aws/`)
+### 5. Infrastructure as Code (`infrastructure-aws/`)
 -   **`cloudformation-template.yaml`**: Complete infrastructure template with all AWS resources
 -   **`cloudformation-template-minimal.yaml`**: Minimal setup for development/testing
 -   **Resources Defined**:
@@ -237,7 +258,7 @@ genai_tweets_digest_serverless/
     -   EventBridge rules for automated scheduling
     -   SES configuration for email delivery
 
-### 5. Testing Infrastructure (`lambdas/tests/`)
+### 6. Testing Infrastructure (`lambdas/tests/`)
 -   **Unit Tests**: 28 comprehensive tests covering all Lambda functions
 -   **Integration Tests**: End-to-end testing with AWS services
 -   **Test Coverage**:
@@ -247,7 +268,7 @@ genai_tweets_digest_serverless/
     -   Tweet Services: 11 tests (fetching, categorization, summarization, S3 operations)
 -   **Testing Framework**: Python unittest with comprehensive mocking strategy
 
-### 6. Scripts and Automation (`scripts/`)
+### 7. Scripts and Automation (`scripts/`)
 -   **`deploy.sh`**: Main deployment script with Lambda packaging and CloudFormation deployment
 -   **`deploy-frontend.sh`**: Frontend-specific deployment automation
 -   **`setup-frontend.sh`**: Frontend build and preparation script
@@ -269,6 +290,8 @@ genai_tweets_digest_serverless/
 TWITTER_BEARER_TOKEN=xxx
 GEMINI_API_KEY=xxx
 FROM_EMAIL=verified@domain.com
+TO_EMAIL=verified@domain.com
+S3_BUCKET_TWEET_CAPTURED=tweets-captured
 API_BASE_URL=https://api-id.execute-api.region.amazonaws.com/stage
 SUBSCRIBERS_TABLE=table-name
 DATA_BUCKET=bucket-name
@@ -333,6 +356,7 @@ ENVIRONMENT=production
 -   **[IMPLEMENTATION_PROGRESS.md](./IMPLEMENTATION_PROGRESS.md)**: Detailed implementation tracking and achievements
 
 ### Technical Documentation
+-   **[visual_tweet_capture_service.md](./visual_tweet_capture_service.md)**: Production-ready visual tweet capture service with S3 integration
 -   **[AWS_CLI_BEST_PRACTICES.md](./AWS_CLI_BEST_PRACTICES.md)**: AWS CLI best practices and production deployment lessons
 -   **[E2E_TESTING_PLAN.md](./E2E_TESTING_PLAN.md)**: Comprehensive end-to-end testing strategy
 -   **[EMAIL_VERIFICATION_SETUP.md](./EMAIL_VERIFICATION_SETUP.md)**: Email verification system implementation
@@ -350,4 +374,4 @@ ENVIRONMENT=production
 
 ---
 
-> **Last Updated**: May 2025 - Reflects production-ready serverless architecture with complete email verification system and real-world validation results.
+> **Last Updated**: June 2025 - Reflects production-ready serverless architecture with complete email verification system, Visual Tweet Capture Service with S3 integration, and real-world validation results.

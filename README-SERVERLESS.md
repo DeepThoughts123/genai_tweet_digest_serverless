@@ -19,6 +19,7 @@ This is a **cost-optimized serverless version** of the GenAI Tweets Digest that 
 - **Static Website**: S3 + CloudFront for the landing page
 - **Subscription API**: Lambda function triggered by API Gateway
 - **Weekly Processing**: Lambda function triggered by EventBridge (weekly schedule)
+- **Visual Tweet Capture Service**: Production-ready service for capturing visual screenshots of Twitter content with S3 storage
 - **Data Storage**: DynamoDB for subscribers, S3 for tweets and configuration
 - **Email Service**: Amazon SES for digest distribution
 
@@ -57,6 +58,9 @@ TWITTER_BEARER_TOKEN="your_twitter_bearer_token"
 GEMINI_API_KEY="your_gemini_api_key"
 FROM_EMAIL="your_verified_ses_email@domain.com"
 TO_EMAIL="your_verified_ses_email@domain.com"
+
+# Visual Tweet Capture Service
+S3_BUCKET_TWEET_CAPTURED="tweets-captured"  # S3 bucket for visual tweet captures
 ```
 
 **Important Notes:**
@@ -123,7 +127,12 @@ genai_tweets_digest/
 │   ├── subscription/            # Email subscription handler
 │   ├── weekly-digest/           # Weekly processing
 │   ├── shared/                  # Shared utilities
+│   │   └── visual_tweet_capture_service.py  # Visual tweet capture service
 │   └── requirements.txt         # Python dependencies
+├── 📁 docs/                     # Documentation
+│   └── visual_tweet_capture_service.md     # Visual capture service guide
+├── 📁 exploration/              # Research and development
+│   └── visual_tweet_capture/    # Visual capture development & testing
 ├── 📁 frontend-static/          # Static website build
 ├── 📁 infrastructure-aws/       # CloudFormation templates
 ├── 📁 data/                     # Configuration files
@@ -160,6 +169,7 @@ Edit `data/accounts.json` to customize the list of accounts to monitor:
 | `GEMINI_API_KEY` | Google Gemini API Key | ✅ |
 | `FROM_EMAIL` | Verified SES email address for sending | ✅ |
 | `TO_EMAIL` | Verified SES email address for testing | ❌ (useful for sandbox testing) |
+| `S3_BUCKET_TWEET_CAPTURED` | S3 bucket for visual tweet captures | ❌ (for visual capture service) |
 | `AWS_REGION` | AWS region for deployment | ❌ (default: us-east-1) |
 | `ENVIRONMENT` | Environment name | ❌ (default: production) |
 
@@ -465,6 +475,7 @@ If you encounter issues:
 
 For detailed implementation guidance and lessons learned:
 
+- **[Visual Tweet Capture Service](docs/visual_tweet_capture_service.md)** - Production-ready service for capturing visual screenshots of Twitter content with date-based S3 organization, account-based folder structure, and comprehensive metadata.
 - **[Schedule Management Guide](docs/SCHEDULE_MANAGEMENT_GUIDE.md)** - Complete guide for manually managing digest generation schedules, including AWS CLI commands, ad-hoc testing, and CloudFormation updates.
 - **[Stack Management Guide](docs/STACK_MANAGEMENT_GUIDE.md)** - Managing stacks, deletion, cleanup, troubleshooting.
 - **[Lambda Optimization Strategy](docs/LAMBDA_OPTIMIZATION_STRATEGY.md)** - Function-specific dependencies, lazy loading, `deploy-optimized.sh` script.
