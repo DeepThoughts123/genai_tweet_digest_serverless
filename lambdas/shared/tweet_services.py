@@ -156,7 +156,7 @@ class TweetFetcher:
                 start_time=formatted_start_time,
                 end_time=formatted_end_time,
                 tweet_fields=['created_at', 'public_metrics'],
-                exclude=['retweets', 'replies']  # Focus on original tweets
+                exclude=['replies']  # Include retweets but exclude replies
             )
             
             if tweets.data:
@@ -278,17 +278,20 @@ class TweetFetcher:
             print(f"❌ Error fetching thread: {e}")
             return base_tweet  # Fall back to single tweet
 
-    def detect_and_group_threads(self, username: str, days_back: int = 7, max_tweets: int = 10) -> List[Dict[str, Any]]:
+    def detect_and_group_threads(self, username: str, days_back: int = 7, max_tweets: int = 25) -> List[Dict[str, Any]]:
         """
         Fetch recent tweets and group them by threads.
         
         Args:
             username: Twitter username (without @)
             days_back: How many days back to search
-            max_tweets: Maximum number of tweets to return
+            max_tweets: Maximum number of tweets to return (should be high enough for complete threads)
             
         Returns:
             List of tweet data (individual tweets or complete threads)
+            
+        Note: max_tweets limits total tweets from user's timeline. If a user has a 12-tweet 
+        thread but max_tweets=5, you'll only get 5 tweets total, truncating the thread.
         """
         print(f"🧵 DETECTING THREADS for @{username}")
         
@@ -320,7 +323,7 @@ class TweetFetcher:
                 start_time=formatted_start_time,
                 end_time=formatted_end_time,
                 tweet_fields=['created_at', 'public_metrics', 'conversation_id', 'text'],
-                exclude=['retweets', 'replies']  # Focus on original tweets
+                exclude=['replies']  # Include retweets but exclude replies
             )
             
             if not tweets.data:
@@ -368,40 +371,29 @@ class TweetFetcher:
                     # Multi-tweet conversation - likely a thread
                     print(f"🧵 Found thread with {len(conv_tweets)} tweets in conversation {conv_id}")
                     
-                    # Get complete conversation using search (to find missing tweets)
-                    complete_conversation = self.fetch_complete_conversation(conv_id, username)
-                    
-                    if complete_conversation and len(complete_conversation) > len(conv_tweets):
-                        print(f"   📈 Expanded from {len(conv_tweets)} to {len(complete_conversation)} tweets using conversation search")
-                        conv_tweets = complete_conversation
-                    
                     # Sort tweets chronologically
-                    conv_tweets.sort(key=lambda x: x['created_at'])
+                    conv_tweets.sort(key=lambda x: x.created_at)
                     
-                    # Process tweets (convert API objects to dicts if needed)
+                    # Process tweets (convert API objects to dicts)
                     thread_tweets = []
                     total_likes = total_retweets = total_replies = 0
                     total_quotes = total_bookmarks = total_impressions = 0
                     
                     for tweet in conv_tweets:
-                        # Handle both API objects and dict objects
-                        if hasattr(tweet, 'id'):  # API object
-                            tweet_data = {
-                                'id': str(tweet.id),
-                                'text': tweet.text,
-                                'created_at': tweet.created_at.isoformat() if tweet.created_at else None,
-                                'metrics': {
-                                    'likes': tweet.public_metrics.get('like_count', 0),
-                                    'retweets': tweet.public_metrics.get('retweet_count', 0),
-                                    'replies': tweet.public_metrics.get('reply_count', 0),
-                                    'quotes': tweet.public_metrics.get('quote_count', 0),
-                                    'bookmarks': tweet.public_metrics.get('bookmark_count', 0),
-                                    'impressions': tweet.public_metrics.get('impression_count', 0),
-                                }
+                        # Convert API object to dict
+                        tweet_data = {
+                            'id': str(tweet.id),
+                            'text': tweet.text,
+                            'created_at': tweet.created_at.isoformat() if tweet.created_at else None,
+                            'metrics': {
+                                'likes': tweet.public_metrics.get('like_count', 0),
+                                'retweets': tweet.public_metrics.get('retweet_count', 0),
+                                'replies': tweet.public_metrics.get('reply_count', 0),
+                                'quotes': tweet.public_metrics.get('quote_count', 0),
+                                'bookmarks': tweet.public_metrics.get('bookmark_count', 0),
+                                'impressions': tweet.public_metrics.get('impression_count', 0),
                             }
-                        else:  # Already a dict
-                            tweet_data = tweet
-                        
+                        }
                         thread_tweets.append(tweet_data)
                         
                         # Sum metrics
@@ -461,92 +453,6 @@ class TweetFetcher:
             
         except Exception as e:
             print(f"❌ Error detecting threads for @{username}: {e}")
-            return []
-
-    def fetch_complete_conversation(self, conversation_id: str, author_username: str) -> List[Dict[str, Any]]:
-        """
-        Fetch ALL tweets in a conversation using conversation search.
-        
-        Args:
-            conversation_id: The conversation ID from Twitter
-            author_username: Username of the thread author
-            
-        Returns:
-            List of all tweets in the conversation by the author
-        """
-        try:
-            print(f"🔍 Fetching complete conversation {conversation_id} by @{author_username}")
-            
-            # First, try to get the conversation starter tweet (often the conversation_id itself)
-            conversation_tweets = []
-            starter_tweet = self.fetch_tweet_by_id(conversation_id)
-            if starter_tweet:
-                print(f"✅ Found conversation starter tweet: {starter_tweet['text'][:100]}...")
-                conversation_tweets.append(starter_tweet)
-            
-            # Search for all other tweets in this conversation by this author
-            search_query = f"conversation_id:{conversation_id} from:{author_username}"
-            
-            conversation_response = self.client_v2.search_recent_tweets(
-                query=search_query,
-                max_results=100,  # Should be enough for most threads
-                tweet_fields=['created_at', 'public_metrics', 'author_id', 'text', 'conversation_id'],
-                expansions=['author_id'],
-                user_fields=['username', 'name']
-            )
-            
-            if conversation_response.data:
-                # Get author information from includes
-                author_info = None
-                if hasattr(conversation_response, 'includes') and conversation_response.includes:
-                    if hasattr(conversation_response.includes, 'users') and conversation_response.includes.users:
-                        users = conversation_response.includes.users
-                        if users and len(users) > 0:
-                            author_info = {
-                                'id': str(users[0].id),
-                                'username': users[0].username,
-                                'name': users[0].name
-                            }
-                
-                # Fallback author info
-                if not author_info:
-                    author_info = {
-                        'id': 'unknown',
-                        'username': author_username,
-                        'name': author_username
-                    }
-                
-                for tweet in conversation_response.data:
-                    # Skip if this is the same as the starter tweet
-                    if str(tweet.id) == conversation_id:
-                        continue
-                    
-                    tweet_data = {
-                        'id': str(tweet.id),
-                        'text': tweet.text,
-                        'author': author_info,
-                        'created_at': tweet.created_at.isoformat() if tweet.created_at else None,
-                        'conversation_id': str(tweet.conversation_id) if hasattr(tweet, 'conversation_id') else conversation_id,
-                        'metrics': {
-                            'likes': tweet.public_metrics.get('like_count', 0),
-                            'retweets': tweet.public_metrics.get('retweet_count', 0),
-                            'replies': tweet.public_metrics.get('reply_count', 0),
-                            'quotes': tweet.public_metrics.get('quote_count', 0),
-                            'bookmarks': tweet.public_metrics.get('bookmark_count', 0),
-                            'impressions': tweet.public_metrics.get('impression_count', 0),
-                        }
-                    }
-                    conversation_tweets.append(tweet_data)
-            
-            # Sort by creation time (chronological order)
-            conversation_tweets.sort(key=lambda x: x['created_at'])
-            
-            print(f"✅ Found {len(conversation_tweets)} tweets in complete conversation (including starter)")
-            
-            return conversation_tweets
-            
-        except Exception as e:
-            print(f"❌ Error fetching complete conversation: {e}")
             return []
 
 class TweetCategorizer:

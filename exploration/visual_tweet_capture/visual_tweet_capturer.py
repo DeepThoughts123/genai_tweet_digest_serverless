@@ -2,13 +2,21 @@
 """
 Visual Tweet Capturer
 
-This approach captures the complete visual representation of a tweet thread:
-1. Opens the tweet URL in a browser
-2. Takes screenshots while scrolling down
-3. Captures the entire conversation visually
-4. Saves individual screenshots and combines them
+This comprehensive approach captures visual representations of ALL Twitter content types:
+1. Conversations/threads (multi-tweet discussions)
+2. Individual tweets (original posts)  
+3. Retweets (shared content with RT @)
 
-Perfect for getting the complete visual context!
+Features:
+- Account-based organization (each account gets its own folder)
+- Content type prefixes (convo_, tweet_, retweet_)
+- Individual tweet capture at 60% page zoom for optimal clarity
+- Intelligent duplicate detection and scrolling
+- ID-based ordering for consistent navigation
+- Cross-account testing with --account parameter
+- Production-ready for serverless GenAI processing
+
+Perfect for comprehensive Twitter content analysis!
 """
 
 import sys
@@ -95,26 +103,77 @@ class VisualTweetCapturer:
         
         return True
     
-    def setup_conversation_folder(self, conversation_id: str, main_tweet_id: str) -> str:
+    def setup_conversation_folder(self, conversation_id: str, main_tweet_id: str, tweet_type: str = "tweet", account_name: str = "unknown") -> str:
         """
-        Create a conversation-specific folder using the main tweet ID.
+        Create a conversation-specific folder using the account name, then tweet type and ID.
         
         Args:
             conversation_id: The conversation ID from Twitter API
             main_tweet_id: The ID of the first/main tweet in the conversation
+            tweet_type: Type of content - "convo", "tweet", or "retweet"
+            account_name: Twitter account username (without @)
             
         Returns:
             Path to the conversation folder
         """
-        # Use the main tweet ID as the folder name for easy identification
-        conversation_folder = os.path.join(self.base_output_dir, f"conversation_{main_tweet_id}")
+        # Use appropriate prefix based on tweet type
+        if tweet_type == "convo":
+            folder_name = f"convo_{main_tweet_id}"
+        elif tweet_type == "retweet":
+            folder_name = f"retweet_{main_tweet_id}"
+        else:  # Default to "tweet" prefix
+            folder_name = f"tweet_{main_tweet_id}"
+        
+        # Create account-specific folder first
+        account_folder = os.path.join(self.base_output_dir, account_name.lower())
+        os.makedirs(account_folder, exist_ok=True)
+        
+        # Create the content folder within the account folder
+        conversation_folder = os.path.join(account_folder, folder_name)
         os.makedirs(conversation_folder, exist_ok=True)
         
         # Update the current output directory
         self.output_dir = conversation_folder
         
-        print(f"📁 Created conversation folder: {conversation_folder}")
+        print(f"📁 Created {tweet_type} folder: {account_name}/{folder_name}")
         return conversation_folder
+    
+    def _detect_tweet_type(self, api_data: dict) -> str:
+        """
+        Detect the type of tweet based on API data.
+        
+        Args:
+            api_data: Tweet data from API
+            
+        Returns:
+            "retweet", "tweet", or "convo"
+        """
+        # Check if it's a retweet by looking at the text
+        text = api_data.get('text', '')
+        if text.startswith('RT @'):
+            return "retweet"
+        
+        # Check if it's part of a conversation/thread
+        is_thread = api_data.get('is_thread', False)
+        if is_thread:
+            return "convo"
+        
+        # Default to individual tweet
+        return "tweet"
+    
+    def _get_account_name(self, api_data: dict) -> str:
+        """
+        Extract account name from API data.
+        
+        Args:
+            api_data: Tweet data from API
+            
+        Returns:
+            Account username (without @)
+        """
+        if api_data and 'author' in api_data and 'username' in api_data['author']:
+            return api_data['author']['username']
+        return "unknown"
     
     def capture_tweet_visually(self, tweet_url: str) -> dict:
         """
@@ -140,7 +199,9 @@ class VisualTweetCapturer:
         # Step 1.5: Set up conversation-specific folder
         conversation_id = api_data.get('conversation_id', api_data['id'])
         main_tweet_id = api_data['id']
-        self.setup_conversation_folder(conversation_id, main_tweet_id)
+        tweet_type = self._detect_tweet_type(api_data)
+        account_name = self._get_account_name(api_data)
+        self.setup_conversation_folder(conversation_id, main_tweet_id, tweet_type, account_name)
         
         # Step 2: Set up browser
         print(f"\n2️⃣ Setting up browser...")
@@ -386,7 +447,9 @@ class VisualTweetCapturer:
             # Fallback to main thread ID
             first_tweet_id = thread_data['id']
         
-        self.setup_conversation_folder(conversation_id, first_tweet_id)
+        # Use "convo" prefix for conversation/thread folders
+        account_name = thread_data['author']['username']
+        self.setup_conversation_folder(conversation_id, first_tweet_id, "convo", account_name)
         
         # Step 2: Get tweets ordered by ID (increasing order)
         sorted_tweets = sorted(thread_tweets, key=lambda x: int(x['id']))
@@ -425,18 +488,19 @@ class VisualTweetCapturer:
             else:
                 print(f"       ❌ Failed to capture tweet {tweet_id}")
         
-        # Step 4: Create comprehensive metadata
-        # Sort the thread_data's thread_tweets by ID as well
-        sorted_thread_data = thread_data.copy()
-        sorted_thread_data['thread_tweets'] = sorted(thread_tweets, key=lambda x: int(x['id']))
+        # Step 4: Create comprehensive metadata without duplication
+        # Remove thread_tweets from thread_data to avoid duplication with ordered_tweets
+        clean_thread_data = thread_data.copy()
+        # Remove the thread_tweets array since we'll have this info in ordered_tweets
+        clean_thread_data.pop('thread_tweets', None)
         
         result = {
             'conversation_id': conversation_id,
             'capture_timestamp': datetime.now().isoformat(),
-            'thread_data': sorted_thread_data,  # Now contains ID-sorted thread_tweets
+            'thread_summary': clean_thread_data,  # Summary info without duplicate tweet list
             'total_tweets_in_thread': len(sorted_tweets),
             'successfully_captured': len(captured_tweets),
-            'ordered_tweets': captured_tweets,  # Ordered by tweet ID (increasing)
+            'ordered_tweets': captured_tweets,  # Complete ordered tweet list with capture info
             'output_directory': self.output_dir,
             'capture_strategy': 'individual_tweet_capture',
             'browser_zoom': '60_percent',
