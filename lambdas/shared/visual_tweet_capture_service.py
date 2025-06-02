@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Visual Tweet Capture Service
+Production Visual Tweet Capture Service
 
-A production-ready service for capturing visual representations of Twitter content
-and storing them in S3 with organized folder structure.
+Professional screenshot capture for tweets with S3 storage integration.
+Date-based folder organization for production use.
 
 Features:
 - Account-based organization with content type prefixes
@@ -21,6 +21,7 @@ import boto3
 import tempfile
 import shutil
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -28,7 +29,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, WebDriverException
 from webdriver_manager.chrome import ChromeDriverManager
 from PIL import Image
 import logging
@@ -45,17 +46,34 @@ class VisualTweetCaptureService:
     Production service for visual tweet capture with S3 storage.
     """
     
-    def __init__(self, s3_bucket: str, zoom_percent: int = 60):
+    def __init__(self, s3_bucket: str, zoom_percent: int = 60, crop_enabled: bool = False, 
+                 crop_x1: int = 0, crop_y1: int = 0, crop_x2: int = 100, crop_y2: int = 100):
         """
         Initialize the visual tweet capture service.
         
         Args:
             s3_bucket: S3 bucket name for storing captured images
             zoom_percent: Browser zoom percentage for captures (default: 60%)
+            crop_enabled: Enable image cropping (default: False)
+            crop_x1: Left boundary as percentage (0-100)
+            crop_y1: Top boundary as percentage (0-100)
+            crop_x2: Right boundary as percentage (0-100)
+            crop_y2: Bottom boundary as percentage (0-100)
         """
         self.s3_bucket = s3_bucket
         self.zoom_percent = zoom_percent
         self.tweet_fetcher = TweetFetcher()
+        
+        # Cropping parameters
+        self.crop_enabled = crop_enabled
+        self.crop_x1 = crop_x1
+        self.crop_y1 = crop_y1
+        self.crop_x2 = crop_x2
+        self.crop_y2 = crop_y2
+        
+        # Validate crop parameters
+        if self.crop_enabled:
+            self._validate_crop_parameters()
         
         # Create date-based folder prefix for today's captures
         self.date_folder = datetime.now().strftime("%Y-%m-%d")
@@ -68,6 +86,53 @@ class VisualTweetCaptureService:
         self.temp_dir = None
         
         logger.info(f"VisualTweetCaptureService initialized with bucket: {s3_bucket}, date folder: {self.date_folder}, zoom: {zoom_percent}%")
+        if self.crop_enabled:
+            logger.info(f"Cropping enabled: ({self.crop_x1}%, {self.crop_y1}%) to ({self.crop_x2}%, {self.crop_y2}%)")
+    
+    def _validate_crop_parameters(self):
+        """Validate crop parameters are within valid ranges."""
+        if not (0 <= self.crop_x1 < self.crop_x2 <= 100):
+            raise ValueError(f"Invalid crop X coordinates: x1={self.crop_x1}, x2={self.crop_x2}. Must be 0 <= x1 < x2 <= 100")
+        if not (0 <= self.crop_y1 < self.crop_y2 <= 100):
+            raise ValueError(f"Invalid crop Y coordinates: y1={self.crop_y1}, y2={self.crop_y2}. Must be 0 <= y1 < y2 <= 100")
+    
+    def crop_image(self, image_path: str, output_path: str = None) -> str:
+        """
+        Crop an image based on percentage coordinates.
+        
+        Args:
+            image_path: Path to the source image
+            output_path: Path for the cropped image (if None, overwrites original)
+            
+        Returns:
+            Path to the cropped image
+        """
+        if not self.crop_enabled:
+            return image_path
+        
+        try:
+            with Image.open(image_path) as img:
+                width, height = img.size
+                
+                # Calculate pixel coordinates from percentages
+                left = int(width * self.crop_x1 / 100)
+                top = int(height * self.crop_y1 / 100)
+                right = int(width * self.crop_x2 / 100)
+                bottom = int(height * self.crop_y2 / 100)
+                
+                # Crop the image
+                cropped_img = img.crop((left, top, right, bottom))
+                
+                # Save the cropped image
+                crop_output_path = output_path or image_path
+                cropped_img.save(crop_output_path, 'PNG', optimize=True)
+                
+                logger.debug(f"Cropped image {image_path} to ({left},{top},{right},{bottom})")
+                return crop_output_path
+                
+        except Exception as e:
+            logger.warning(f"Error cropping image {image_path}: {e}")
+            return image_path  # Return original path if cropping fails
     
     def capture_account_content(
         self, 
@@ -238,25 +303,34 @@ class VisualTweetCaptureService:
             
             # Create thread metadata (same clean structure as exploration)
             clean_thread_data = thread_data.copy()
-            clean_thread_data.pop('thread_tweets', None)  # Remove duplicate info
+            clean_thread_data.pop('thread_tweets', None)
             
-            metadata = {
+            thread_metadata = {
                 'conversation_id': conversation_id,
                 'capture_timestamp': datetime.now().isoformat(),
-                'thread_summary': clean_thread_data,  # Summary info without duplicate tweet list
+                'thread_summary': clean_thread_data,
                 'total_tweets_in_thread': len(sorted_tweets),
                 'successfully_captured': len(captured_tweets),
-                'ordered_tweets': captured_tweets,  # Complete ordered tweet list with capture info
+                'ordered_tweets': captured_tweets,
                 's3_bucket': self.s3_bucket,
                 's3_folder_prefix': s3_folder_prefix,
-                'capture_strategy': 'individual_tweet_capture',
                 'browser_zoom': f'{self.zoom_percent}_percent',
+                'cropping': {
+                    'enabled': self.crop_enabled,
+                    'coordinates': {
+                        'x1_percent': self.crop_x1,
+                        'y1_percent': self.crop_y1,
+                        'x2_percent': self.crop_x2,
+                        'y2_percent': self.crop_y2
+                    } if self.crop_enabled else None
+                },
+                'capture_strategy': 'individual_tweet_capture',
                 'sort_order': 'by_tweet_id_increasing'
             }
             
             # Upload metadata to S3
             metadata_s3_key = f"{s3_folder_prefix}metadata.json"
-            self._upload_json_to_s3(metadata, metadata_s3_key)
+            self._upload_json_to_s3(thread_metadata, metadata_s3_key)
             
             return {
                 'type': 'thread',
@@ -316,6 +390,15 @@ class VisualTweetCaptureService:
                 's3_bucket': self.s3_bucket,
                 's3_folder_prefix': s3_folder_prefix,
                 'browser_zoom': f'{self.zoom_percent}_percent',
+                'cropping': {
+                    'enabled': self.crop_enabled,
+                    'coordinates': {
+                        'x1_percent': self.crop_x1,
+                        'y1_percent': self.crop_y1,
+                        'x2_percent': self.crop_x2,
+                        'y2_percent': self.crop_y2
+                    } if self.crop_enabled else None
+                },
                 'tweet_metadata': tweet_data
             }
             
@@ -404,30 +487,26 @@ class VisualTweetCaptureService:
         # Take initial screenshot at top of page (same filename format as exploration)
         screenshot_path = os.path.join(self.temp_dir, f"{tweet_id}_{timestamp}_page_{screenshot_count:02d}.png")
         self.driver.save_screenshot(screenshot_path)
-        screenshots.append(screenshot_path)
+        
+        # Apply cropping if enabled
+        cropped_path = self.crop_image(screenshot_path)
+        screenshots.append(cropped_path)
         screenshot_count += 1
+        
         last_scroll_position = self.driver.execute_script("return window.pageYOffset")
         
+        # Scroll and capture remaining screenshots (same as exploration)
         while screenshot_count < max_screenshots:
-            # Get current scroll position
-            current_scroll_position = self.driver.execute_script("return window.pageYOffset")
-            current_page_height = self.driver.execute_script("return document.body.scrollHeight")
-            max_scroll = current_page_height - viewport_height
-            
-            # Check if we've reached the bottom
-            if current_scroll_position >= max_scroll:
-                logger.debug(f"Reached bottom of page for {tweet_id}")
-                break
-            
-            # Scroll down by correct amount (same as exploration for thread tweets at 60% zoom)
-            scroll_amount = int(viewport_height * 0.7)  # Larger scroll since content is smaller at 60%
+            # Scroll down
+            scroll_amount = int(viewport_height * 0.8)
             self.driver.execute_script(f"window.scrollBy(0, {scroll_amount})")
             
-            # Wait for content to load (same as exploration for thread tweets)
-            time.sleep(2.5)
+            # Wait for content to load
+            time.sleep(2.0)
             
-            # Get new scroll position
+            # Get current scroll position
             new_scroll_position = self.driver.execute_script("return window.pageYOffset")
+            current_scroll_position = new_scroll_position
             
             # Check if we actually scrolled (same logic as exploration)
             if new_scroll_position <= last_scroll_position:
@@ -443,7 +522,10 @@ class VisualTweetCaptureService:
                 if scroll_progress > (viewport_height * 0.3):  # Only if scrolled more than 30% of viewport
                     screenshot_path = os.path.join(self.temp_dir, f"{tweet_id}_{timestamp}_page_{screenshot_count:02d}.png")
                     self.driver.save_screenshot(screenshot_path)
-                    screenshots.append(screenshot_path)
+                    
+                    # Apply cropping if enabled
+                    cropped_path = self.crop_image(screenshot_path)
+                    screenshots.append(cropped_path)
                     screenshot_count += 1
                 else:
                     logger.debug(f"Skipped screenshot for {tweet_id} - minimal scroll progress ({scroll_progress}px)")
@@ -451,6 +533,8 @@ class VisualTweetCaptureService:
             last_scroll_position = new_scroll_position
         
         logger.debug(f"Captured {len(screenshots)} screenshots for {tweet_id}")
+        if self.crop_enabled:
+            logger.debug(f"Applied cropping to all screenshots: ({self.crop_x1}%, {self.crop_y1}%) → ({self.crop_x2}%, {self.crop_y2}%)")
         return screenshots
     
     def _setup_browser(self) -> bool:

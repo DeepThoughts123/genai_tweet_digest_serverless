@@ -12,12 +12,40 @@ The Tweet Processing Pipeline provides a complete end-to-end solution for captur
 
 - 🎯 **Targeted Account Processing**: Capture tweets from specific Twitter accounts
 - 📸 **Visual Tweet Capture**: High-quality screenshots with customizable zoom levels
+- ✂️ **Image Cropping**: Focus on specific regions of captured screenshots  
 - 🤖 **AI Text Extraction**: Gemini 2.0 Flash multimodal text extraction
 - 🧵 **Thread Detection**: Automatic thread identification and processing
 - 📊 **Professional CLI**: argparse-based interface with comprehensive options
-- 🔄 **Dual API Support**: Choose between Timeline or Search API methods
+- 🔄 **Dual API Support**: Timeline API vs Search API selection for optimal rate limit management
+- 🔧 **Professional CLI**: Comprehensive command-line interface with validation
 - 💾 **Comprehensive Metadata**: Complete capture and extraction information
 - 🛡️ **Rate Limit Resilience**: Intelligent fallback and error handling
+- 🚀 **Production Ready**: Error handling, logging, and S3 integration
+
+### 🎨 Image Cropping
+
+The pipeline supports precise image cropping to focus on specific content areas:
+
+- **Percentage-based coordinates**: Define crop region as percentages (0-100)
+- **Flexible targeting**: Remove sidebars, headers, or focus on tweet content
+- **Metadata preservation**: Cropping parameters stored in all metadata files  
+- **AI compatibility**: Cropped images work seamlessly with text extraction
+
+**Crop Parameters:**
+- `x1, y1`: Top-left corner coordinates (percentages)
+- `x2, y2`: Bottom-right corner coordinates (percentages)
+
+**Example Use Cases:**
+```bash
+# Focus on center content (remove sidebars)
+--crop-enabled --crop-x1 20 --crop-y1 0 --crop-x2 80 --crop-y2 100
+
+# Narrow vertical strip (main tweet area)  
+--crop-enabled --crop-x1 40 --crop-y1 0 --crop-x2 60 --crop-y2 90
+
+# Remove header and footer
+--crop-enabled --crop-x1 0 --crop-y1 10 --crop-x2 100 --crop-y2 85
+```
 
 ## Quick Start
 
@@ -71,20 +99,28 @@ The pipeline supports two different API methods for fetching tweets:
 
 ## CLI Reference
 
-### Core Parameters
+### Required Parameters
 
-```bash
-python capture_and_extract.py [OPTIONS]
-```
+- `--accounts`: Twitter usernames to process (default: elonmusk)
+- `--days-back`: Days to look back for tweets (default: 7)  
+- `--max-tweets`: Maximum tweets per account (default: 25)
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `--accounts` | list | `['elonmusk']` | Twitter usernames (without @) |
-| `--days-back` | int | `7` | Days back to search |
-| `--max-tweets` | int | `25` | Max tweets per account |
-| `--zoom-percent` | int | `50` | Browser zoom (25-200) |
-| `--api-method` | choice | `timeline` | API method: `timeline` or `search` |
-| `--no-confirm` | flag | `false` | Skip confirmation prompt |
+### Visual Capture Parameters
+
+- `--zoom-percent`: Browser zoom level 25-200% (default: 50)
+- `--crop-enabled`: Enable image cropping to specified region
+- `--crop-x1`: Left boundary as percentage 0-99% (default: 0)
+- `--crop-y1`: Top boundary as percentage 0-99% (default: 0) 
+- `--crop-x2`: Right boundary as percentage 1-100% (default: 100)
+- `--crop-y2`: Bottom boundary as percentage 1-100% (default: 100)
+
+### API Method Parameters
+
+- `--api-method`: Choose 'timeline' or 'search' API (default: timeline)
+
+### Control Parameters
+
+- `--no-confirm`: Skip confirmation prompts for automation
 
 ### Example Commands
 

@@ -19,8 +19,10 @@ Features:
 Perfect for comprehensive Twitter content analysis!
 """
 
-import sys
 import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
 import json
 import time
 from datetime import datetime
@@ -31,11 +33,11 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, WebDriverException
 from webdriver_manager.chrome import ChromeDriverManager
 from PIL import Image
 import requests
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
@@ -49,11 +51,22 @@ from shared.tweet_services import TweetFetcher
 class VisualTweetCapturer:
     """Visual tweet capturer using browser automation and screenshots."""
     
-    def __init__(self, headless=True):
+    def __init__(self, headless=True, crop_enabled=False, crop_x1=0, crop_y1=0, crop_x2=100, crop_y2=100):
         self.api_fetcher = TweetFetcher()
         self.headless = headless
         self.driver = None
         self.screenshots = []
+        
+        # Cropping parameters
+        self.crop_enabled = crop_enabled
+        self.crop_x1 = crop_x1  # Left boundary as percentage (0-100)
+        self.crop_y1 = crop_y1  # Top boundary as percentage (0-100) 
+        self.crop_x2 = crop_x2  # Right boundary as percentage (0-100)
+        self.crop_y2 = crop_y2  # Bottom boundary as percentage (0-100)
+        
+        # Validate crop parameters
+        if self.crop_enabled:
+            self._validate_crop_parameters()
         
         # Create base output directory
         self.base_output_dir = "visual_captures"
@@ -61,6 +74,52 @@ class VisualTweetCapturer:
         
         # Current conversation output directory (will be set per conversation)
         self.output_dir = self.base_output_dir
+    
+    def _validate_crop_parameters(self):
+        """Validate crop parameters are within valid ranges."""
+        if not (0 <= self.crop_x1 < self.crop_x2 <= 100):
+            raise ValueError(f"Invalid crop X coordinates: x1={self.crop_x1}, x2={self.crop_x2}. Must be 0 <= x1 < x2 <= 100")
+        if not (0 <= self.crop_y1 < self.crop_y2 <= 100):
+            raise ValueError(f"Invalid crop Y coordinates: y1={self.crop_y1}, y2={self.crop_y2}. Must be 0 <= y1 < y2 <= 100")
+        
+        print(f"✂️ Cropping enabled: ({self.crop_x1}%, {self.crop_y1}%) to ({self.crop_x2}%, {self.crop_y2}%)")
+    
+    def crop_image(self, image_path: str, output_path: str = None) -> str:
+        """
+        Crop an image based on percentage coordinates.
+        
+        Args:
+            image_path: Path to the source image
+            output_path: Path for the cropped image (if None, overwrites original)
+            
+        Returns:
+            Path to the cropped image
+        """
+        if not self.crop_enabled:
+            return image_path
+        
+        try:
+            with Image.open(image_path) as img:
+                width, height = img.size
+                
+                # Calculate pixel coordinates from percentages
+                left = int(width * self.crop_x1 / 100)
+                top = int(height * self.crop_y1 / 100)
+                right = int(width * self.crop_x2 / 100)
+                bottom = int(height * self.crop_y2 / 100)
+                
+                # Crop the image
+                cropped_img = img.crop((left, top, right, bottom))
+                
+                # Save the cropped image
+                crop_output_path = output_path or image_path
+                cropped_img.save(crop_output_path, 'PNG', optimize=True)
+                
+                return crop_output_path
+                
+        except Exception as e:
+            print(f"⚠️ Error cropping image {image_path}: {e}")
+            return image_path  # Return original path if cropping fails
     
     def setup_browser(self, zoom_percent=100):
         """Set up Chrome browser with optimal settings for screenshot capture."""
@@ -304,17 +363,24 @@ class VisualTweetCapturer:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         print(f"📸 Starting screenshot capture...")
+        if self.crop_enabled:
+            print(f"✂️ Will crop screenshots to ({self.crop_x1}%, {self.crop_y1}%) → ({self.crop_x2}%, {self.crop_y2}%)")
         
         # Take initial screenshot at top of page
         screenshot_path = f"{self.output_dir}/{tweet_id}_{timestamp}_page_{screenshot_count:02d}.png"
         self.driver.save_screenshot(screenshot_path)
-        self.screenshots.append(screenshot_path)
+        
+        # Apply cropping if enabled
+        cropped_path = self.crop_image(screenshot_path)
+        self.screenshots.append(cropped_path)
         
         # Get initial scroll position and page info
         current_scroll_position = self.driver.execute_script("return window.pageYOffset")
         viewport_height = self.driver.execute_script("return window.innerHeight")
         
-        print(f"   📸 Screenshot {screenshot_count + 1}: {os.path.basename(screenshot_path)} (top of page)")
+        print(f"   📸 Screenshot {screenshot_count + 1}: {os.path.basename(cropped_path)} (top of page)")
+        if self.crop_enabled and cropped_path != screenshot_path:
+            print(f"   ✂️ Applied cropping")
         print(f"   📊 Viewport: {viewport_height}px, Initial scroll: {current_scroll_position}px")
         
         screenshot_count += 1
@@ -349,9 +415,14 @@ class VisualTweetCapturer:
                 # Only take screenshot if we actually scrolled
                 screenshot_path = f"{self.output_dir}/{tweet_id}_{timestamp}_page_{screenshot_count:02d}.png"
                 self.driver.save_screenshot(screenshot_path)
-                self.screenshots.append(screenshot_path)
                 
-                print(f"   📸 Screenshot {screenshot_count + 1}: {os.path.basename(screenshot_path)}")
+                # Apply cropping if enabled
+                cropped_path = self.crop_image(screenshot_path)
+                self.screenshots.append(cropped_path)
+                
+                print(f"   📸 Screenshot {screenshot_count + 1}: {os.path.basename(cropped_path)}")
+                if self.crop_enabled and cropped_path != screenshot_path:
+                    print(f"   ✂️ Applied cropping")
                 screenshot_count += 1
             
             last_scroll_position = new_scroll_position
@@ -362,6 +433,8 @@ class VisualTweetCapturer:
                 break
         
         print(f"✅ Captured {len(self.screenshots)} unique screenshots")
+        if self.crop_enabled:
+            print(f"✂️ All screenshots cropped to region: ({self.crop_x1}%, {self.crop_y1}%) → ({self.crop_x2}%, {self.crop_y2}%)")
     
     def process_screenshots(self, api_data: dict, tweet_url: str) -> dict:
         """Process captured screenshots without combining them."""
@@ -384,7 +457,7 @@ class VisualTweetCapturer:
             except Exception as e:
                 print(f"⚠️ Error reading {screenshot_path}: {e}")
         
-        # Create result metadata
+        # Create result metadata with cropping information
         result = {
             'tweet_url': tweet_url,
             'capture_timestamp': datetime.now().isoformat(),
@@ -395,6 +468,15 @@ class VisualTweetCapturer:
                     'width': max_width,
                     'height': total_height
                 }
+            },
+            'cropping': {
+                'enabled': self.crop_enabled,
+                'coordinates': {
+                    'x1_percent': self.crop_x1,
+                    'y1_percent': self.crop_y1,
+                    'x2_percent': self.crop_x2,
+                    'y2_percent': self.crop_y2
+                } if self.crop_enabled else None
             },
             'api_metadata': api_data,
             'output_directory': self.output_dir
@@ -409,6 +491,8 @@ class VisualTweetCapturer:
         print(f"   📁 Conversation folder: {self.output_dir}")
         print(f"   📸 Individual screenshots: {len(self.screenshots)}")
         print(f"   📊 Total dimensions: {max_width}x{total_height}")
+        if self.crop_enabled:
+            print(f"   ✂️ Cropping applied: ({self.crop_x1}%, {self.crop_y1}%) → ({self.crop_x2}%, {self.crop_y2}%)")
         print(f"   💾 Metadata saved: {os.path.basename(metadata_path)}")
         
         return result
@@ -612,6 +696,9 @@ class VisualTweetCapturer:
             # Take initial screenshot
             screenshot_path = f"{tweet_folder}/page_{screenshot_count:02d}.png"
             self.driver.save_screenshot(screenshot_path)
+            
+            # Apply cropping if enabled
+            cropped_path = self.crop_image(screenshot_path)
             screenshot_count += 1
             
             while screenshot_count < max_screenshots:
@@ -652,8 +739,13 @@ class VisualTweetCapturer:
                     if scroll_progress > (viewport_height * 0.3):  # Only if scrolled more than 30% of viewport
                         screenshot_path = f"{tweet_folder}/page_{screenshot_count:02d}.png"
                         self.driver.save_screenshot(screenshot_path)
+                        
+                        # Apply cropping if enabled
+                        cropped_path = self.crop_image(screenshot_path)
                         screenshot_count += 1
                         print(f"           📸 Screenshot {screenshot_count}: scrolled {scroll_progress}px")
+                        if self.crop_enabled and cropped_path != screenshot_path:
+                            print(f"           ✂️ Applied cropping")
                     else:
                         print(f"           ⏭️ Skipped screenshot - minimal scroll progress ({scroll_progress}px)")
                 
@@ -664,7 +756,16 @@ class VisualTweetCapturer:
                 'tweet_url': tweet_url,
                 'screenshot_count': screenshot_count,
                 'screenshots': [f"page_{i:02d}.png" for i in range(screenshot_count)],
-                'capture_timestamp': datetime.now().isoformat()
+                'capture_timestamp': datetime.now().isoformat(),
+                'cropping': {
+                    'enabled': self.crop_enabled,
+                    'coordinates': {
+                        'x1_percent': self.crop_x1,
+                        'y1_percent': self.crop_y1,
+                        'x2_percent': self.crop_x2,
+                        'y2_percent': self.crop_y2
+                    } if self.crop_enabled else None
+                }
             }
             
         except Exception as e:

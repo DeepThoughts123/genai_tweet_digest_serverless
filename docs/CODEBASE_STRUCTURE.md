@@ -232,15 +232,22 @@ genai_tweets_digest_serverless/
 ### 3. Tweet Processing
 
 **Location**: `exploration/tweet_processing/`  
-**Purpose**: Complete tweet capture and text extraction pipeline with dual API support  
+**Purpose**: Complete tweet capture and text extraction pipeline with dual API support and image cropping  
 **Status**: ✅ Production-ready with 96% success rate validation
 
 ### Components
 
-- **`capture_and_extract.py`**: Main pipeline with professional CLI and dual API method support
+- **`capture_and_extract.py`**: Main pipeline with professional CLI, dual API methods, and image cropping
 - **`tweet_text_extractor.py`**: Multimodal AI text extraction using Gemini 2.0 Flash  
 - **`test_text_extraction.py`**: Comprehensive testing framework
 - **`reorganize_captures.py`**: Utility for organizing captures by account
+
+### Image Cropping
+
+- **Percentage-based coordinates**: Define crop regions as percentages (0-100)
+- **Real-time application**: Applied during screenshot capture with immediate feedback
+- **Metadata tracking**: Cropping parameters preserved in all capture metadata
+- **AI compatibility**: Cropped images work seamlessly with text extraction
 
 ### API Method Options
 
