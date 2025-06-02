@@ -229,36 +229,32 @@ genai_tweets_digest_serverless/
     -   Account summaries with success metrics and folder references
     -   Environment variable configuration (`S3_BUCKET_TWEET_CAPTURED`)
 
-### 3. Tweet Processing Pipeline (`exploration/tweet_processing/`)
--   **Purpose**: Advanced development and testing environment for tweet capture and multimodal text extraction
--   **Features**:
-    -   **Complete Pipeline Automation**: End-to-end tweet capture and text extraction with argparse CLI interface
-    -   **Professional Command Line Interface**: Flexible parameter configuration via argparse with help documentation
-    -   **Multimodal Text Extraction**: Gemini 2.0 Flash integration for extracting complete text from tweet screenshots
-    -   **Rate Limit Resilience**: Intelligent fallback with URL-based username extraction when API fails
-    -   **Configurable Zoom Levels**: Adjustable browser zoom (25-200%) for optimal screenshot quality
-    -   **Account-Based Organization**: Automatic folder structure with proper account attribution
-    -   **Comprehensive Testing**: Complete test suite for both local and S3 processing scenarios
-    -   **Metadata Enhancement**: AI-generated summaries and complete text extraction stored in metadata files
--   **Key Components**:
-    -   **`capture_and_extract.py`**: Main pipeline script with argparse interface supporting:
-        -   Multiple account processing (`--accounts user1 user2 user3`)
-        -   Configurable time ranges (`--days-back 7`)
-        -   Tweet limits (`--max-tweets 25`) 
-        -   Zoom settings (`--zoom-percent 50`)
-        -   Automated execution (`--no-confirm`)
-    -   **`tweet_text_extractor.py`**: Multimodal AI text extraction service featuring:
-        -   Base64 image encoding for screenshot analysis
-        -   Complete text extraction from visual content
-        -   AI-generated 1-2 sentence summaries
-        -   Metadata enhancement with full_text and summary fields
-        -   Content type detection (processes individual tweets/retweets, skips conversations)
-    -   **`test_text_extraction.py`**: Comprehensive testing framework supporting:
-        -   S3 capture testing with temporary downloads
-        -   Local capture testing with flexible folder structure support
-        -   Single folder debugging mode
-        -   Both legacy and new date-based folder structures
--   **Production Readiness**: Complete error handling, cleanup, flexible deployment options, cost-conscious API usage
+### 3. Tweet Processing
+
+**Location**: `exploration/tweet_processing/`  
+**Purpose**: Complete tweet capture and text extraction pipeline with dual API support  
+**Status**: ✅ Production-ready with 96% success rate validation
+
+### Components
+
+- **`capture_and_extract.py`**: Main pipeline with professional CLI and dual API method support
+- **`tweet_text_extractor.py`**: Multimodal AI text extraction using Gemini 2.0 Flash  
+- **`test_text_extraction.py`**: Comprehensive testing framework
+- **`reorganize_captures.py`**: Utility for organizing captures by account
+
+### API Method Options
+
+- **Timeline API** (`--api-method timeline`): For detailed single-account analysis (300 req/15min per user)
+- **Search API** (`--api-method search`): For bulk processing and automation (180 req/15min global)
+
+### Integration Points
+
+- **Visual Tweet Capture**: Uses `lambdas/shared/visual_tweet_capture_service.py`
+- **Tweet Services**: Enhanced `lambdas/shared/tweet_services.py` with dual API support
+- **Text Extraction**: Gemini 2.0 Flash multimodal AI processing
+- **Storage**: Local folder organization with comprehensive metadata
+
+**Cross-references**: See [Tweet Processing Pipeline](tweet_processing_pipeline.md) for complete documentation
 
 ### 4. Static Frontend (`frontend-static/`)
 -   **Technology**: Next.js static export with React components

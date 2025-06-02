@@ -115,9 +115,27 @@ class TweetFetcher:
         
         return None
 
-    def fetch_recent_tweets(self, username: str, days_back: int = 7, max_tweets: int = 10) -> List[str]:
+    def fetch_recent_tweets(self, username: str, days_back: int = 7, max_tweets: int = 10, api_method: str = 'timeline') -> List[str]:
         """
         Fetch recent tweet URLs from a user account for visual capture.
+        
+        Args:
+            username: Twitter username (without @)
+            days_back: How many days back to search
+            max_tweets: Maximum number of tweets to return
+            api_method: API method to use ('timeline' or 'search')
+            
+        Returns:
+            List of tweet URLs for visual capture
+        """
+        if api_method == 'search':
+            return self._fetch_recent_tweets_via_search(username, days_back, max_tweets)
+        else:
+            return self._fetch_recent_tweets_via_timeline(username, days_back, max_tweets)
+
+    def _fetch_recent_tweets_via_timeline(self, username: str, days_back: int = 7, max_tweets: int = 10) -> List[str]:
+        """
+        Fetch recent tweet URLs using user timeline API.
         
         Args:
             username: Twitter username (without @)
@@ -137,7 +155,7 @@ class TweetFetcher:
                 return []
             
             user_id = user.data.id
-            print(f"✅ Found user @{username} (ID: {user_id})")
+            print(f"✅ Found user @{username} (ID: {user_id}) [Timeline API]")
             
             # Calculate date range
             end_time = datetime.utcnow()
@@ -149,10 +167,13 @@ class TweetFetcher:
             
             print(f"🔍 Searching for tweets from {formatted_start_time} to {formatted_end_time}")
             
+            # Timeline API requires minimum 5 results, so we'll request more and filter
+            timeline_max_results = max(5, min(max_tweets * 2, 100))  # At least 5, at most 100
+            
             # Fetch recent tweets
             tweets = self.client_v2.get_users_tweets(
                 id=user_id,
-                max_results=max_tweets,
+                max_results=timeline_max_results,
                 start_time=formatted_start_time,
                 end_time=formatted_end_time,
                 tweet_fields=['created_at', 'public_metrics'],
@@ -160,8 +181,8 @@ class TweetFetcher:
             )
             
             if tweets.data:
-                print(f"📝 Found {len(tweets.data)} tweets")
-                for tweet in tweets.data:
+                print(f"📝 Found {len(tweets.data)} tweets from timeline, limiting to {max_tweets}")
+                for i, tweet in enumerate(tweets.data[:max_tweets]):
                     tweet_url = f"https://twitter.com/{username}/status/{tweet.id}"
                     tweet_urls.append(tweet_url)
                     print(f"   • {tweet_url} ({tweet.created_at.strftime('%Y-%m-%d')})")
@@ -170,6 +191,80 @@ class TweetFetcher:
                 
         except Exception as e:
             print(f"❌ Error fetching tweets for @{username}: {e}")
+            if "max_results" in str(e):
+                print(f"💡 Note: Timeline API requires minimum 5 results, but will limit output to {max_tweets}")
+        
+        return tweet_urls
+
+    def _fetch_recent_tweets_via_search(self, username: str, days_back: int = 7, max_tweets: int = 10) -> List[str]:
+        """
+        Fetch recent tweet URLs using search API.
+        
+        Args:
+            username: Twitter username (without @)
+            days_back: How many days back to search
+            max_tweets: Maximum number of tweets to return
+            
+        Returns:
+            List of tweet URLs for visual capture
+        """
+        tweet_urls = []
+        
+        try:
+            print(f"✅ Searching for tweets from @{username} [Search API]")
+            
+            # Calculate date range
+            # end_time must be at least 10 seconds before current time for search API
+            end_time = datetime.utcnow() - timedelta(seconds=15)  # Use 15 seconds to be safe
+            start_time = end_time - timedelta(days=days_back)
+            
+            # Format for Twitter API (RFC3339)
+            formatted_start_time = start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
+            formatted_end_time = end_time.strftime('%Y-%m-%dT%H:%M:%SZ')
+            
+            print(f"🔍 Searching for tweets from {formatted_start_time} to {formatted_end_time}")
+            
+            # Build search query
+            search_query = f"from:{username} -is:reply"  # Exclude replies, include retweets
+            
+            # Search API requires minimum 10 results, so we'll request more and filter
+            search_max_results = max(10, min(max_tweets * 2, 100))  # At least 10, at most 100
+            
+            # Fetch tweets using search API
+            tweets = self.client_v2.search_recent_tweets(
+                query=search_query,
+                max_results=search_max_results,
+                start_time=formatted_start_time,
+                end_time=formatted_end_time,
+                tweet_fields=['created_at', 'public_metrics', 'author_id'],
+                expansions=['author_id'],
+                user_fields=['username', 'name']
+            )
+            
+            if tweets.data:
+                print(f"📝 Found {len(tweets.data)} tweets from search, limiting to {max_tweets}")
+                
+                # Get username from includes if available
+                author_username = username
+                if hasattr(tweets, 'includes') and tweets.includes:
+                    if hasattr(tweets.includes, 'users') and tweets.includes.users:
+                        users = tweets.includes.users
+                        if users and len(users) > 0:
+                            author_username = users[0].username
+                
+                # Limit to requested max_tweets and create URLs
+                for i, tweet in enumerate(tweets.data[:max_tweets]):
+                    tweet_url = f"https://twitter.com/{author_username}/status/{tweet.id}"
+                    tweet_urls.append(tweet_url)
+                    print(f"   • {tweet_url} ({tweet.created_at.strftime('%Y-%m-%d')})")
+            else:
+                print(f"📭 No tweets found for @{username} in the last {days_back} days")
+                
+        except Exception as e:
+            print(f"❌ Error searching tweets for @{username}: {e}")
+            print(f"💡 This might be due to API rate limits or search restrictions")
+            if "max_results" in str(e):
+                print(f"💡 Note: Search API requires minimum 10 results, but will limit output to {max_tweets}")
         
         return tweet_urls
 

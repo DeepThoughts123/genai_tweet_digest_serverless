@@ -24,7 +24,7 @@ from tweet_text_extractor import TweetTextExtractor
 from visual_tweet_capturer import VisualTweetCapturer
 from shared.tweet_services import TweetFetcher
 
-def step1_capture_tweets(accounts, days_back, max_tweets_per_account, zoom_percent=100):
+def step1_capture_tweets(accounts, days_back, max_tweets_per_account, zoom_percent=100, api_method='timeline'):
     """
     Step 1: Capture tweets from specified accounts.
     
@@ -33,6 +33,7 @@ def step1_capture_tweets(accounts, days_back, max_tweets_per_account, zoom_perce
         days_back: Number of days back to search
         max_tweets_per_account: Maximum tweets per account
         zoom_percent: Browser zoom percentage for screenshots
+        api_method: API method to use ('timeline' or 'search')
     """
     print("🎯 STEP 1: CAPTURING TWEETS FROM SPECIFIED ACCOUNTS")
     print("=" * 70)
@@ -42,6 +43,7 @@ def step1_capture_tweets(accounts, days_back, max_tweets_per_account, zoom_perce
     print(f"   📅 Days back: {days_back} days")
     print(f"   📊 Max tweets per account: {max_tweets_per_account}")
     print(f"   🔍 Browser zoom: {zoom_percent}%")
+    print(f"   🔧 API method: {api_method.upper()} API")
     
     # Initialize services
     print(f"\n🔧 Initializing services...")
@@ -63,12 +65,13 @@ def step1_capture_tweets(accounts, days_back, max_tweets_per_account, zoom_perce
         print(f"🔄 PROCESSING ACCOUNT: @{account}")
         print("=" * 70)
         
-        # Step 1.1: Fetch recent tweet URLs
-        print(f"📡 Fetching recent tweets for @{account}...")
+        # Step 1.1: Fetch recent tweet URLs using specified API method
+        print(f"📡 Fetching recent tweets for @{account} using {api_method.upper()} API...")
         tweet_urls = tweet_fetcher.fetch_recent_tweets(
             username=account,
             days_back=days_back,
-            max_tweets=max_tweets_per_account
+            max_tweets=max_tweets_per_account,
+            api_method=api_method
         )
         
         if not tweet_urls:
@@ -243,7 +246,7 @@ def step2_extract_text():
         print(f"\n⚠️ No accounts were processed successfully")
         return False
 
-def main(accounts, days_back, max_tweets, zoom_percent):
+def main(accounts, days_back, max_tweets, zoom_percent, api_method):
     """
     Main function to run the complete pipeline.
     
@@ -252,6 +255,7 @@ def main(accounts, days_back, max_tweets, zoom_percent):
         days_back: Number of days back to search
         max_tweets: Maximum tweets per account
         zoom_percent: Browser zoom percentage for screenshots
+        api_method: API method to use ('timeline' or 'search')
     """
     print("🚀 TWEET CAPTURE AND TEXT EXTRACTION PIPELINE")
     print("📅 " + datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
@@ -262,6 +266,7 @@ def main(accounts, days_back, max_tweets, zoom_percent):
     print("   2. Run text extraction on captured content using Gemini 2.0 Flash")
     print("   3. Update metadata files with extracted text and summaries")
     print(f"   4. Use {zoom_percent}% browser zoom for screenshots")
+    print(f"   5. Use {api_method.upper()} API for tweet fetching")
     
     # Ask user if they want to proceed
     proceed = input(f"\nProceed with pipeline? (y/n): ").strip().lower()
@@ -270,7 +275,7 @@ def main(accounts, days_back, max_tweets, zoom_percent):
         return
     
     # Step 1: Capture tweets
-    capture_success = step1_capture_tweets(accounts, days_back, max_tweets, zoom_percent)
+    capture_success = step1_capture_tweets(accounts, days_back, max_tweets, zoom_percent, api_method)
     
     if not capture_success:
         print("\n❌ Tweet capture failed. Cannot proceed to text extraction.")
@@ -319,17 +324,27 @@ if __name__ == "__main__":
         description="Tweet Capture and Text Extraction Pipeline",
         epilog="""
 Examples:
-  # Default: Elon Musk, 7 days, 25 tweets, 50% zoom
+  # Default: Elon Musk, 7 days, 25 tweets, 50% zoom, timeline API
   python capture_and_extract.py
   
   # Multiple accounts with custom settings
   python capture_and_extract.py --accounts elonmusk openai andrewyng --days-back 10 --max-tweets 30 --zoom-percent 75
   
+  # Use search API instead of timeline API (avoids user timeline rate limits)
+  python capture_and_extract.py --accounts elonmusk --api-method search
+  
+  # Search API with multiple accounts (recommended for bulk processing)
+  python capture_and_extract.py --accounts minchoi openai andrewyng --api-method search --max-tweets 20
+  
   # Quick run without confirmation prompt
   python capture_and_extract.py --accounts minchoi --no-confirm
   
-  # High zoom for detailed screenshots
-  python capture_and_extract.py --accounts elonmusk --zoom-percent 125 --days-back 3
+  # High zoom for detailed screenshots with search API
+  python capture_and_extract.py --accounts elonmusk --zoom-percent 125 --days-back 3 --api-method search
+
+API Methods:
+  timeline: Uses user timeline API (get_users_tweets) - may hit rate limits with many accounts
+  search:   Uses search API (search_recent_tweets) - better for bulk processing, same results
         """,
         formatter_class=CustomFormatter
     )
@@ -364,6 +379,13 @@ Examples:
     )
     
     parser.add_argument(
+        '--api-method',
+        choices=['timeline', 'search'],
+        default='timeline',
+        help='API method to use for fetching tweets (timeline: user timeline API, search: search API)'
+    )
+    
+    parser.add_argument(
         '--no-confirm',
         action='store_true',
         help='Skip confirmation prompt and run immediately'
@@ -379,12 +401,13 @@ Examples:
     print(f"   📅 Days back: {args.days_back}")
     print(f"   📊 Max tweets per account: {args.max_tweets}")
     print(f"   🔍 Browser zoom: {args.zoom_percent}%")
+    print(f"   🔧 API method: {args.api_method.upper()}")
     print("=" * 50)
     
     # Override confirmation if --no-confirm is used
     if args.no_confirm:
         # Modify main to skip confirmation
-        def main_no_confirm(accounts, days_back, max_tweets, zoom_percent):
+        def main_no_confirm(accounts, days_back, max_tweets, zoom_percent, api_method):
             """Main function without confirmation prompt."""
             print("🚀 TWEET CAPTURE AND TEXT EXTRACTION PIPELINE")
             print("📅 " + datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
@@ -395,9 +418,10 @@ Examples:
             print("   2. Run text extraction on captured content using Gemini 2.0 Flash")
             print("   3. Update metadata files with extracted text and summaries")
             print(f"   4. Use {zoom_percent}% browser zoom for screenshots")
+            print(f"   5. Use {api_method.upper()} API for tweet fetching")
             
             # Step 1: Capture tweets
-            capture_success = step1_capture_tweets(accounts, days_back, max_tweets, zoom_percent)
+            capture_success = step1_capture_tweets(accounts, days_back, max_tweets, zoom_percent, api_method)
             
             if not capture_success:
                 print("\n❌ Tweet capture failed. Cannot proceed to text extraction.")
@@ -437,7 +461,7 @@ Examples:
             print("=" * 70)
         
         # Run without confirmation
-        main_no_confirm(args.accounts, args.days_back, args.max_tweets, args.zoom_percent)
+        main_no_confirm(args.accounts, args.days_back, args.max_tweets, args.zoom_percent, args.api_method)
     else:
         # Run with confirmation
-        main(args.accounts, args.days_back, args.max_tweets, args.zoom_percent) 
+        main(args.accounts, args.days_back, args.max_tweets, args.zoom_percent, args.api_method) 
