@@ -87,7 +87,7 @@ genai_tweets_digest_serverless/
 │   ├── AMAZON_SES_INTEGRATION.md # SES integration documentation
 │   └── serverless-migration-plan.md # Initial serverless migration plan
 ├── exploration/              # Research and development
-│   ├── visual_tweet_capture/ # Visual tweet capture development & testing
+│   ├── visual_tweet_capture/ # Visual tweet capture development & testing with intelligent retry mechanism
 │   └── tweet_processing/     # Advanced tweet processing pipeline
 │       ├── capture_and_extract.py # Complete tweet capture and text extraction pipeline with argparse
 │       ├── tweet_text_extractor.py # Gemini 2.0 Flash multimodal text extraction from screenshots
@@ -212,22 +212,32 @@ genai_tweets_digest_serverless/
 -   **`email_verification_service.py`**: Double opt-in email verification with secure token management
 -   **`unsubscribe_service.py`**: Unsubscribe functionality with token-based security
 
-### 2. Visual Tweet Capture Service (`lambdas/shared/visual_tweet_capture_service.py`)
--   **Purpose**: Production-ready service for capturing visual screenshots of Twitter content
--   **Features**:
-    -   **Date-based S3 Organization**: Automatic folder structure with YYYY-MM-DD/account/content_type_id
-    -   **Content Type Detection**: Automatically detects and organizes threads (convo_), individual tweets (tweet_), and retweets (retweet_)
-    -   **Account-based Organization**: Separate folders for each Twitter account within date folders
-    -   **Configurable Browser Settings**: Adjustable zoom percentage and capture parameters
-    -   **Intelligent Scrolling**: Avoids duplicate screenshots with smart scrolling logic
-    -   **Comprehensive Error Handling**: Automatic cleanup, retry logic, and detailed logging
-    -   **Clean Metadata Structure**: No duplication, complete capture information with S3 references
-    -   **Production Testing**: Validated with real accounts (@minchoi, @AndrewYNg) - 100% success rate
--   **S3 Integration**:
-    -   Automatic upload of screenshots with timestamped filenames
-    -   Metadata files in JSON format with complete capture details
-    -   Account summaries with success metrics and folder references
-    -   Environment variable configuration (`S3_BUCKET_TWEET_CAPTURED`)
+### 2. Visual Tweet Capture Service
+
+#### **Production Service**: `lambdas/shared/visual_tweet_capture_service.py`
+- **Functionality**: Professional screenshot capture with S3 storage integration
+- **S3 Integration**: Date-based folder organization with automatic upload
+- **Browser Automation**: Selenium-based tweet capture with optimized settings
+- **Configuration**: Configurable zoom levels and capture parameters
+- **NEW: Production-Grade Retry Mechanism**: Intelligent error handling with exponential backoff
+  - **Error Categorization**: Automatic detection of transient vs permanent errors
+  - **Smart Retry Logic**: Only retry appropriate errors, fail fast for permanent issues
+  - **Multi-Level Fallback**: Primary setup → minimal config → graceful failure
+  - **Network Resilience**: Page loading retry with progressive timeouts
+  - **Resource Management**: Automatic cleanup of failed browser instances
+  - **Configurable Parameters**: `max_browser_retries`, `retry_delay`, `retry_backoff`
+
+#### **Exploration Version**: `exploration/visual_tweet_capture/visual_tweet_capturer.py`
+- **Enhanced Features**: Same retry mechanism as production service
+- **Local Testing**: Comprehensive visual capture testing framework
+- **Image Processing**: Optional cropping and optimization features
+- **Account Organization**: Content organized by account and type (thread/tweet/retweet)
+
+#### **Testing**: `lambdas/tests/test_visual_tweet_capture_service.py` (24 comprehensive tests)
+- **Retry Mechanism Tests** (12 tests): Browser setup scenarios, error categorization
+- **Fallback Configuration Tests** (3 tests): Primary success, minimal config fallback
+- **Page Navigation Retry Tests** (4 tests): Network resilience, timeout recovery
+- **Integration & Configuration Tests** (5 tests): End-to-end validation, parameter testing
 
 ### 3. Tweet Processing
 

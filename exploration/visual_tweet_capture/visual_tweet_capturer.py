@@ -51,11 +51,17 @@ from shared.tweet_services import TweetFetcher
 class VisualTweetCapturer:
     """Visual tweet capturer using browser automation and screenshots."""
     
-    def __init__(self, headless=True, crop_enabled=False, crop_x1=0, crop_y1=0, crop_x2=100, crop_y2=100):
+    def __init__(self, headless=True, crop_enabled=False, crop_x1=0, crop_y1=0, crop_x2=100, crop_y2=100, 
+                 max_browser_retries=3, retry_delay=2.0, retry_backoff=2.0):
         self.api_fetcher = TweetFetcher()
         self.headless = headless
         self.driver = None
         self.screenshots = []
+        
+        # Browser retry configuration
+        self.max_browser_retries = max_browser_retries
+        self.retry_delay = retry_delay  # Initial delay in seconds
+        self.retry_backoff = retry_backoff  # Backoff multiplier
         
         # Cropping parameters
         self.crop_enabled = crop_enabled
@@ -121,46 +127,191 @@ class VisualTweetCapturer:
             print(f"⚠️ Error cropping image {image_path}: {e}")
             return image_path  # Return original path if cropping fails
     
+    def _cleanup_failed_driver(self):
+        """Clean up any existing driver instance that may have failed during setup."""
+        if self.driver:
+            try:
+                self.driver.quit()
+                print("   🧹 Cleaned up failed browser instance")
+            except Exception as e:
+                print(f"   ⚠️ Error during browser cleanup: {e}")
+            finally:
+                self.driver = None
+    
+    def _categorize_browser_error(self, error: Exception) -> str:
+        """
+        Categorize browser setup errors to determine retry strategy.
+        
+        Args:
+            error: Exception that occurred during browser setup
+            
+        Returns:
+            Error category: 'transient', 'permanent', or 'unknown'
+        """
+        error_str = str(error).lower()
+        
+        # Transient errors that might resolve with retry
+        transient_indicators = [
+            'timeout', 'connection', 'network', 'temporary', 'busy',
+            'resource temporarily unavailable', 'address already in use',
+            'chromedriver', 'webdriver', 'session not created'
+        ]
+        
+        # Permanent errors that won't resolve with retry
+        permanent_indicators = [
+            'chrome not found', 'executable not found', 'no such file',
+            'permission denied', 'access denied', 'not installed',
+            'unsupported chrome version'
+        ]
+        
+        for indicator in transient_indicators:
+            if indicator in error_str:
+                return 'transient'
+        
+        for indicator in permanent_indicators:
+            if indicator in error_str:
+                return 'permanent'
+        
+        return 'unknown'  # Default to retry for unknown errors
+    
     def setup_browser(self, zoom_percent=100):
-        """Set up Chrome browser with optimal settings for screenshot capture."""
+        """Set up Chrome browser with optimal settings and retry mechanism."""
         print("🔧 Setting up browser...")
         
-        chrome_options = Options()
+        for attempt in range(1, self.max_browser_retries + 1):
+            try:
+                # Clean up any previous failed attempt
+                self._cleanup_failed_driver()
+                
+                if attempt > 1:
+                    print(f"   🔄 Retry attempt {attempt}/{self.max_browser_retries}")
+                
+                chrome_options = Options()
+                
+                if self.headless:
+                    chrome_options.add_argument("--headless")
+                
+                # Use standard window size but we'll zoom the page content
+                chrome_options.add_argument("--no-sandbox")
+                chrome_options.add_argument("--disable-dev-shm-usage")
+                chrome_options.add_argument("--disable-gpu")
+                chrome_options.add_argument("--window-size=1920,1080")  # Standard size
+                chrome_options.add_argument("--disable-extensions")
+                chrome_options.add_argument("--disable-plugins")
+                chrome_options.add_argument("--disable-web-security")  # May help with some setup issues
+                chrome_options.add_argument("--disable-features=VizDisplayCompositor")  # May help with crashes
+                
+                # Set user agent to avoid detection
+                chrome_options.add_argument("--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                
+                # Use webdriver-manager to automatically handle chromedriver
+                print(f"   📥 Installing/updating ChromeDriver...")
+                service = Service(ChromeDriverManager().install())
+                
+                print(f"   🚀 Starting Chrome browser...")
+                self.driver = webdriver.Chrome(service=service, options=chrome_options)
+                
+                # Test that the browser is working by navigating to a simple page
+                print(f"   🧪 Testing browser functionality...")
+                self.driver.get("data:text/html,<html><body><h1>Browser Test</h1></body></html>")
+                
+                # Set page zoom level if different from 100%
+                if zoom_percent != 100:
+                    zoom_level = zoom_percent / 100.0
+                    self.driver.execute_script(f"document.body.style.zoom='{zoom_level}'")
+                    print(f"✅ Chrome browser initialized with {zoom_percent}% page zoom (attempt {attempt})")
+                else:
+                    print(f"✅ Chrome browser initialized at standard size (attempt {attempt})")
+                
+                return True
+                
+            except Exception as e:
+                error_category = self._categorize_browser_error(e)
+                print(f"   ❌ Browser setup failed (attempt {attempt}): {e}")
+                print(f"   🔍 Error category: {error_category}")
+                
+                # Clean up failed driver
+                self._cleanup_failed_driver()
+                
+                # Don't retry for permanent errors
+                if error_category == 'permanent':
+                    print(f"   🚫 Permanent error detected - not retrying")
+                    break
+                
+                # If this isn't the last attempt, wait before retrying
+                if attempt < self.max_browser_retries:
+                    delay = self.retry_delay * (self.retry_backoff ** (attempt - 1))
+                    print(f"   ⏱️ Waiting {delay:.1f} seconds before retry...")
+                    time.sleep(delay)
+                else:
+                    print(f"   🚫 Max retry attempts ({self.max_browser_retries}) reached")
         
+        # All attempts failed
+        print("❌ Browser setup failed after all retry attempts")
+        print("💡 Troubleshooting suggestions:")
+        print("   • Ensure Chrome is installed: brew install --cask google-chrome")
+        print("   • Check Chrome version compatibility")
+        print("   • Try running without headless mode for debugging")
+        print("   • Check system resources (memory, CPU)")
+        print("   • Restart your system if issues persist")
+        
+        return False
+    
+    def setup_browser_with_fallback(self, zoom_percent=100):
+        """
+        Set up browser with fallback options if primary setup fails.
+        
+        Args:
+            zoom_percent: Browser zoom percentage
+            
+        Returns:
+            bool: True if successful, False if all options failed
+        """
+        # Try primary setup with retries
+        if self.setup_browser(zoom_percent):
+            return True
+        
+        print("🔄 Trying fallback browser configurations...")
+        
+        # Fallback 1: Try without headless mode (if currently headless)
         if self.headless:
-            chrome_options.add_argument("--headless")
+            print("   📱 Fallback 1: Trying non-headless mode...")
+            original_headless = self.headless
+            self.headless = False
+            
+            if self.setup_browser(zoom_percent):
+                print("   ✅ Non-headless mode successful")
+                return True
+            
+            # Restore original headless setting
+            self.headless = original_headless
         
-        # Use standard window size but we'll zoom the page content
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--window-size=1920,1080")  # Standard size
-        chrome_options.add_argument("--disable-extensions")
-        chrome_options.add_argument("--disable-plugins")
-        
-        # Set user agent to avoid detection
-        chrome_options.add_argument("--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        
+        # Fallback 2: Try with minimal Chrome options
+        print("   ⚙️ Fallback 2: Trying minimal Chrome configuration...")
         try:
-            # Use webdriver-manager to automatically handle chromedriver
+            self._cleanup_failed_driver()
+            
+            chrome_options = Options()
+            if self.headless:
+                chrome_options.add_argument("--headless")
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            
             service = Service(ChromeDriverManager().install())
             self.driver = webdriver.Chrome(service=service, options=chrome_options)
             
-            # Set page zoom level if different from 100%
-            if zoom_percent != 100:
-                zoom_level = zoom_percent / 100.0
-                self.driver.execute_script(f"document.body.style.zoom='{zoom_level}'")
-                print(f"✅ Chrome browser initialized with {zoom_percent}% page zoom")
-            else:
-                print(f"✅ Chrome browser initialized at standard size")
-                
+            # Test basic functionality
+            self.driver.get("data:text/html,<html><body><h1>Minimal Test</h1></body></html>")
+            
+            print("   ✅ Minimal configuration successful")
+            return True
+            
         except Exception as e:
-            print(f"❌ Chrome setup failed: {e}")
-            print("💡 Please ensure Chrome is installed")
-            print("   brew install --cask google-chrome")
-            return False
+            print(f"   ❌ Minimal configuration failed: {e}")
+            self._cleanup_failed_driver()
         
-        return True
+        print("🚫 All browser setup options failed")
+        return False
     
     def setup_conversation_folder(self, conversation_id: str, main_tweet_id: str, tweet_type: str = "tweet", account_name: str = "unknown") -> str:
         """
@@ -314,21 +465,18 @@ class VisualTweetCapturer:
         account_name = self._get_account_name(api_data, tweet_url)
         self.setup_conversation_folder(conversation_id, main_tweet_id, tweet_type, account_name)
         
-        # Step 2: Set up browser with specified zoom
-        print(f"\n2️⃣ Setting up browser...")
-        if not self.setup_browser(zoom_percent=zoom_percent):
+        # Step 2: Set up browser with specified zoom and retry mechanism
+        print(f"\n2️⃣ Setting up browser with retry mechanism...")
+        if not self.setup_browser_with_fallback(zoom_percent=zoom_percent):
+            print("❌ Failed to set up browser after all retry attempts and fallbacks")
             return None
         
         try:
-            # Step 3: Navigate to tweet
+            # Step 3: Navigate to tweet with retry logic
             print(f"\n3️⃣ Loading tweet page...")
-            self.driver.get(tweet_url)
-            
-            # Wait for page to load
-            WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.TAG_NAME, "article"))
-            )
-            print("✅ Page loaded successfully")
+            if not self._navigate_to_page_with_retry(tweet_url):
+                print("❌ Failed to load tweet page after retries")
+                return None
             
             # Step 4: Capture screenshots while scrolling
             print(f"\n4️⃣ Capturing visual content...")
@@ -340,9 +488,6 @@ class VisualTweetCapturer:
             
             return result
             
-        except TimeoutException:
-            print("❌ Page load timeout")
-            return None
         except Exception as e:
             print(f"❌ Capture error: {e}")
             return None
@@ -350,6 +495,63 @@ class VisualTweetCapturer:
             if self.driver:
                 self.driver.quit()
                 print("🔧 Browser closed")
+    
+    def _navigate_to_page_with_retry(self, url: str, max_retries: int = 3) -> bool:
+        """
+        Navigate to a page with retry mechanism for network/loading issues.
+        
+        Args:
+            url: URL to navigate to
+            max_retries: Maximum number of retry attempts
+            
+        Returns:
+            bool: True if successful, False if all attempts failed
+        """
+        for attempt in range(1, max_retries + 1):
+            try:
+                if attempt > 1:
+                    print(f"   🔄 Page load retry {attempt}/{max_retries}")
+                
+                # Navigate to the page
+                self.driver.get(url)
+                
+                # Wait for key elements to load with different timeouts based on attempt
+                base_timeout = 10
+                timeout = base_timeout + (attempt - 1) * 5  # Increase timeout with each retry
+                
+                # Wait for article element (main tweet content)
+                WebDriverWait(self.driver, timeout).until(
+                    EC.presence_of_element_located((By.TAG_NAME, "article"))
+                )
+                
+                # Additional wait for dynamic content to fully load
+                time.sleep(2 + attempt)  # Slightly longer wait on retries
+                
+                print(f"✅ Page loaded successfully (attempt {attempt})")
+                return True
+                
+            except TimeoutException as e:
+                print(f"   ⏱️ Page load timeout on attempt {attempt}: {e}")
+                if attempt < max_retries:
+                    delay = 2.0 * attempt  # Progressive delay
+                    print(f"   ⏱️ Waiting {delay} seconds before retry...")
+                    time.sleep(delay)
+                
+            except WebDriverException as e:
+                print(f"   🌐 WebDriver error on attempt {attempt}: {e}")
+                if attempt < max_retries:
+                    delay = 3.0 * attempt  # Longer delay for WebDriver issues
+                    print(f"   ⏱️ Waiting {delay} seconds before retry...")
+                    time.sleep(delay)
+                
+            except Exception as e:
+                print(f"   ❌ Unexpected error on attempt {attempt}: {e}")
+                if attempt < max_retries:
+                    print(f"   ⏱️ Waiting 5 seconds before retry...")
+                    time.sleep(5.0)
+        
+        print(f"❌ Failed to load page after {max_retries} attempts")
+        return False
     
     def capture_scrolling_screenshots(self, tweet_url: str):
         """Capture screenshots while scrolling down to get the complete thread with dynamic loading."""
@@ -668,18 +870,16 @@ class VisualTweetCapturer:
         Returns:
             Dict with capture results or None if failed
         """
-        # Set up browser at 60% zoom
-        if not self.setup_browser(zoom_percent=60):
+        # Set up browser at 60% zoom with retry mechanism
+        if not self.setup_browser_with_fallback(zoom_percent=60):
+            print(f"       ❌ Failed to set up browser for tweet {tweet_id} after all retries")
             return None
         
         try:
-            # Navigate to tweet
-            self.driver.get(tweet_url)
-            
-            # Wait for page to load
-            WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.TAG_NAME, "article"))
-            )
+            # Navigate to tweet with retry logic
+            if not self._navigate_to_page_with_retry(tweet_url):
+                print(f"       ❌ Failed to load tweet page for {tweet_id} after retries")
+                return None
             
             # Wait a bit more for dynamic content
             time.sleep(3.0)
@@ -776,54 +976,147 @@ class VisualTweetCapturer:
                 self.driver.quit()
 
 def test_visual_capture():
-    """Test the visual capture approach."""
+    """Test the visual capture approach with retry mechanism."""
     
     # Test with the specific tweet
     tweet_url = "https://twitter.com/AndrewYNg/status/1928105439368995193"
     
-    print("📸 TESTING VISUAL TWEET CAPTURE")
-    print("=" * 60)
+    print("📸 TESTING VISUAL TWEET CAPTURE WITH RETRY MECHANISM")
+    print("=" * 70)
     
-    capturer = VisualTweetCapturer(headless=True)  # Headless mode - no browser window
+    # Test with custom retry configuration
+    capturer = VisualTweetCapturer(
+        headless=True,  # Headless mode - no browser window
+        max_browser_retries=3,  # Try browser setup up to 3 times
+        retry_delay=2.0,  # Start with 2 second delays
+        retry_backoff=2.0  # Double the delay each retry
+    )
+    
+    print(f"🔧 Retry Configuration:")
+    print(f"   Max browser retries: {capturer.max_browser_retries}")
+    print(f"   Initial retry delay: {capturer.retry_delay}s")
+    print(f"   Retry backoff multiplier: {capturer.retry_backoff}x")
+    print()
+    
     result = capturer.capture_tweet_visually(tweet_url)
     
     if result:
-        print(f"\n" + "=" * 60)
+        print(f"\n" + "=" * 70)
         print(f"🎉 VISUAL CAPTURE SUCCESS!")
-        print("=" * 60)
+        print("=" * 70)
         
         print(f"\n📸 CAPTURE SUMMARY:")
         screenshots = result['screenshots']
         print(f"   📁 Output folder: {result['output_directory']}")
         print(f"   📸 Screenshots taken: {screenshots['count']}")
-        print(f"   🖼️ Combined image: {screenshots['combined_file']}")
         print(f"   📐 Total size: {screenshots['total_dimensions']['width']}x{screenshots['total_dimensions']['height']}")
+        
+        # Show cropping info if enabled
+        cropping = result.get('cropping', {})
+        if cropping.get('enabled', False):
+            coords = cropping['coordinates']
+            print(f"   ✂️ Cropping applied: ({coords['x1_percent']}%, {coords['y1_percent']}%) → ({coords['x2_percent']}%, {coords['y2_percent']}%)")
         
         print(f"\n📄 FILES CREATED:")
         for filename in screenshots['individual_files']:
             print(f"   • {filename}")
-        if screenshots['combined_file']:
-            print(f"   • {screenshots['combined_file']} (combined)")
         print(f"   • capture_metadata.json")
         
         return True
     else:
-        print(f"\n❌ Visual capture failed")
+        print(f"\n❌ Visual capture failed after all retry attempts")
+        print(f"\n🔧 RETRY MECHANISM FEATURES DEMONSTRATED:")
+        print(f"   ✅ Intelligent error categorization (transient vs permanent)")
+        print(f"   ✅ Exponential backoff retry delays")
+        print(f"   ✅ Automatic cleanup of failed browser instances")
+        print(f"   ✅ Fallback configurations (non-headless, minimal options)")
+        print(f"   ✅ Page loading retry with progressive timeouts")
+        return False
+
+def test_visual_capture_with_cropping():
+    """Test visual capture with image cropping enabled."""
+    
+    tweet_url = "https://twitter.com/AndrewYNg/status/1928105439368995193"
+    
+    print("✂️ TESTING VISUAL CAPTURE WITH IMAGE CROPPING")
+    print("=" * 70)
+    
+    # Test with cropping enabled - crop to middle portion of screenshots
+    capturer = VisualTweetCapturer(
+        headless=True,
+        crop_enabled=True,
+        crop_x1=20,  # Start at 20% from left
+        crop_y1=10,  # Start at 10% from top
+        crop_x2=80,  # End at 80% from left
+        crop_y2=90,  # End at 90% from top
+        max_browser_retries=2,  # Fewer retries for test
+        retry_delay=1.5
+    )
+    
+    result = capturer.capture_tweet_visually(tweet_url)
+    
+    if result:
+        print(f"\n✅ CROPPING TEST SUCCESS!")
+        print(f"   📁 Output folder: {result['output_directory']}")
+        
+        cropping = result['cropping']
+        if cropping['enabled']:
+            coords = cropping['coordinates']
+            print(f"   ✂️ Cropping region: ({coords['x1_percent']}%, {coords['y1_percent']}%) → ({coords['x2_percent']}%, {coords['y2_percent']}%)")
+        
+        return True
+    else:
+        print(f"\n❌ Cropping test failed")
         return False
 
 if __name__ == "__main__":
-    success = test_visual_capture()
+    print("🚀 STARTING VISUAL TWEET CAPTURER TESTS")
+    print("=" * 70)
     
-    if success:
-        print(f"\n🎯 VISUAL CAPTURE APPROACH BENEFITS:")
+    # Test 1: Basic visual capture with retry mechanism
+    print("\n📸 TEST 1: Basic Visual Capture with Retry Mechanism")
+    success1 = test_visual_capture()
+    
+    # Test 2: Visual capture with cropping
+    print("\n✂️ TEST 2: Visual Capture with Image Cropping")
+    success2 = test_visual_capture_with_cropping()
+    
+    # Summary
+    print("\n" + "=" * 70)
+    print("📊 TEST SUMMARY")
+    print("=" * 70)
+    
+    if success1 and success2:
+        print("🎉 ALL TESTS PASSED!")
+        print(f"\n🎯 ENHANCED VISUAL CAPTURE BENEFITS:")
         print(f"   ✅ Complete visual representation")
+        print(f"   ✅ Robust retry mechanism for browser failures")
+        print(f"   ✅ Intelligent error categorization")
+        print(f"   ✅ Exponential backoff retry delays")
+        print(f"   ✅ Fallback browser configurations")
+        print(f"   ✅ Page loading retry with progressive timeouts")
+        print(f"   ✅ Automatic cleanup of failed instances")
+        print(f"   ✅ Optional image cropping for focused content")
         print(f"   ✅ Captures entire thread and replies")
         print(f"   ✅ No text truncation issues")
         print(f"   ✅ Preserves exact formatting and layout")
         print(f"   ✅ Works with any public tweet")
-        print("=" * 60)
+        print("=" * 70)
+    elif success1:
+        print("✅ Basic capture test passed")
+        print("⚠️ Cropping test failed")
+        print("\n💡 The retry mechanism is working for basic captures")
+    elif success2:
+        print("⚠️ Basic capture test failed")
+        print("✅ Cropping test passed")
+        print("\n💡 Cropping functionality works when browser setup succeeds")
     else:
-        print(f"\n❌ Please install required dependencies:")
-        print(f"   pip install selenium pillow")
-        print(f"   brew install --cask google-chrome")
-        print(f"   brew install chromedriver") 
+        print("❌ BOTH TESTS FAILED")
+        print(f"\n🔧 TROUBLESHOOTING:")
+        print(f"   • Ensure Chrome is installed: brew install --cask google-chrome")
+        print(f"   • Check Chrome version compatibility")
+        print(f"   • Try running with headless=False for debugging")
+        print(f"   • Check system resources (memory, CPU)")
+        print(f"   • Verify network connectivity")
+        print(f"   • Install dependencies: pip install selenium pillow webdriver-manager")
+        print("=" * 70) 

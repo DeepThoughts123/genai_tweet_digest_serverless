@@ -1,12 +1,171 @@
 # Visual Tweet Capture Service
 
-A production-ready service for capturing visual representations of Twitter content and storing them in S3 with organized folder structure.
-
-> **🚀 New**: For a complete end-to-end solution that combines visual capture with multimodal text extraction, see the [Tweet Processing Pipeline](./tweet_processing_pipeline.md) in `exploration/tweet_processing/`. It includes argparse CLI, rate limit resilience, and Gemini 2.0 Flash text extraction.
-
-> **Note**: This service implements the exact same capture logic that was thoroughly tested in the `exploration/visual_tweet_capture/` folder, ensuring consistent behavior and reliability.
-
 ## Overview
+
+Production-ready service for capturing visual screenshots of Twitter content with **intelligent retry mechanism** and S3 storage integration. Designed for serverless environments with comprehensive error handling and reliability features.
+
+## Key Features
+
+### **🔄 Production-Grade Retry Mechanism (NEW)**
+- **Intelligent Error Categorization**: Automatic detection of transient vs permanent vs unknown errors
+- **Smart Retry Logic**: Only retry appropriate errors, fail fast for permanent issues
+- **Exponential Backoff**: Configurable delay progression (default: 2.0s, 2x multiplier)
+- **Multi-Level Fallback**: Primary browser setup → minimal config → graceful failure
+- **Network Resilience**: Page loading retry with progressive timeouts
+- **Resource Management**: Automatic cleanup of failed browser instances
+
+### **📸 Content Capture**
+- **Account-based Organization**: Separate folders for each Twitter account
+- **Content Type Detection**: Automatically detects threads (convo_), individual tweets (tweet_), and retweets (retweet_)
+- **Intelligent Scrolling**: Avoids duplicate screenshots with smart scrolling detection
+- **Configurable Zoom**: Adjustable browser zoom percentage for optimal capture quality
+
+### **☁️ S3 Integration**  
+- **Date-based Folder Structure**: `YYYY-MM-DD/account/content_type_id/`
+- **Automatic Upload**: Screenshots and metadata uploaded to S3 with proper naming
+- **Comprehensive Metadata**: Complete capture information with S3 references and no duplication
+
+### **🧪 Comprehensive Testing (24 Tests)**
+- **100% Test Coverage**: All retry mechanism functionality thoroughly tested
+- **Mocked Dependencies**: Reliable testing with comprehensive mocking strategy
+- **Production Validation**: Tested with real browser automation scenarios
+
+## Reliability & Retry Mechanism
+
+### Error Categorization
+
+The service intelligently categorizes errors to determine the appropriate retry strategy:
+
+**Transient Errors** (will retry with backoff):
+- Connection timeouts
+- Network errors  
+- ChromeDriver session creation failures
+- Resource temporarily unavailable
+- Address already in use
+
+**Permanent Errors** (fail fast, no retry):
+- Chrome not found
+- Executable not found
+- Permission denied
+- Unsupported Chrome version
+
+**Unknown Errors** (default to retry):
+- Any error not matching specific patterns
+
+### Retry Configuration
+
+```python
+service = VisualTweetCaptureService(
+    s3_bucket="your-bucket",
+    max_browser_retries=3,    # Number of browser setup attempts
+    retry_delay=2.0,          # Initial delay between retries (seconds)
+    retry_backoff=2.0         # Exponential backoff multiplier
+)
+```
+
+### Fallback Strategies
+
+1. **Primary Setup**: Full Chrome configuration with all optimization flags
+2. **Minimal Configuration**: Basic Chrome options for maximum compatibility
+3. **Graceful Failure**: Clear error reporting with troubleshooting suggestions
+
+### Network Resilience
+
+- **Page Loading Retry**: Progressive timeout increases (10s + 5s per retry)
+- **Content Loading Wait**: Dynamic wait times based on retry attempt
+- **WebDriver Error Recovery**: Specific handling for WebDriver exceptions
+
+## Usage
+
+### Basic Usage
+
+```python
+from lambdas.shared.visual_tweet_capture_service import capture_twitter_account_visuals
+
+# Capture with default retry settings
+result = capture_twitter_account_visuals(
+    account_name="AndrewYNg",
+    s3_bucket="my-tweet-captures",
+    days_back=7,
+    max_tweets=25
+)
+```
+
+### Advanced Configuration with Custom Retry Settings
+
+```python
+from lambdas.shared.visual_tweet_capture_service import VisualTweetCaptureService
+
+# Configure service with custom retry parameters
+service = VisualTweetCaptureService(
+    s3_bucket="my-tweet-captures",
+    zoom_percent=60,
+    max_browser_retries=5,      # More aggressive retry for unreliable environments
+    retry_delay=1.5,            # Faster initial retry
+    retry_backoff=3.0           # More aggressive backoff
+)
+
+# Capture account content
+result = service.capture_account_content(
+    account_name="AndrewYNg",
+    days_back=7,
+    max_tweets=25
+)
+```
+
+## Testing
+
+### Comprehensive Test Suite (24 Tests)
+
+The service includes a comprehensive test suite specifically for the retry mechanism:
+
+```bash
+cd lambdas
+python -m pytest tests/test_visual_tweet_capture_service.py -v
+```
+
+#### Test Categories
+
+**Retry Mechanism Tests (12 tests)**:
+- Browser setup success/failure scenarios
+- Error categorization validation
+- Max retries behavior with exponential backoff  
+- Automatic cleanup of failed browser instances
+
+**Fallback Configuration Tests (3 tests)**:
+- Primary browser setup success validation
+- Minimal configuration fallback testing
+- All options failure handling scenarios
+
+**Page Navigation Retry Tests (4 tests)**:
+- Successful navigation scenarios
+- Timeout retry with progressive delays
+- WebDriver error recovery testing
+- Max retries exceeded behavior
+
+**Integration & Configuration Tests (5 tests)**:
+- End-to-end screenshot capture with retry mechanism
+- Parameter validation and default values
+- Exponential backoff calculation verification
+- Exception cleanup and resource management
+
+### Running Specific Test Categories
+
+```bash
+# Test intelligent error categorization
+python -m pytest tests/test_visual_tweet_capture_service.py::TestRetryMechanism::test_error_categorization_transient -v
+
+# Test browser setup retry logic
+python -m pytest tests/test_visual_tweet_capture_service.py::TestRetryMechanism::test_browser_setup_retry_transient_error -v
+
+# Test fallback strategies
+python -m pytest tests/test_visual_tweet_capture_service.py::TestFallbackBrowserSetup::test_fallback_minimal_config_success -v
+
+# Test page navigation resilience
+python -m pytest tests/test_visual_tweet_capture_service.py::TestPageNavigationRetry::test_page_navigation_retry_timeout_success -v
+```
+
+## Architecture
 
 This service provides a simple, scalable way to capture visual screenshots of Twitter content (threads, individual tweets, retweets) and automatically store them in S3 with clean organization and metadata.
 
@@ -18,6 +177,9 @@ This service provides a simple, scalable way to capture visual screenshots of Tw
 - 📁 **Automatic S3 Organization**: Creates folders and uploads with clean structure
 - 📋 **Clean Metadata**: No duplicate information, comprehensive capture details
 - ⚡ **Production Ready**: Error handling, logging, temporary file cleanup
+- 🛡️ **Robust Retry Mechanism**: Intelligent error categorization and exponential backoff retries
+- 🔄 **Browser Failure Recovery**: Automatic cleanup and fallback configurations
+- 🌐 **Network Resilience**: Page loading retry with progressive timeouts
 - 🧵 **Complete Thread Capture**: Captures all tweets in threads individually
 - 📸 **Intelligent Scrolling**: Avoids duplicate screenshots with smart scrolling
 

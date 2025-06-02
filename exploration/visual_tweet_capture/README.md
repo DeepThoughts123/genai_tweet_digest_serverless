@@ -15,7 +15,10 @@ This feature provides browser-based visual capture of Twitter conversations, ind
 - **Cross-Account Testing**: Test with any Twitter account using `--account` parameter
 - **Clean Folder Structure**: Each tweet in its own subfolder
 - **Complete Metadata**: JSON metadata with ID-sorted tweet information
-- **Production Ready**: Optimized for serverless GenAI digest processing
+- **Intelligent Retry Mechanism**: Browser setup retries with exponential backoff and error categorization
+- **Browser Failure Recovery**: Automatic cleanup and fallback configurations for improved reliability
+- **Network Resilience**: Page loading retry with progressive timeouts and error recovery
+- **Production Ready**: Optimized for serverless GenAI digest processing with robust error handling
 
 ## Files
 
@@ -87,6 +90,47 @@ The `max_tweets` parameter controls the **total number of tweets** retrieved fro
 - `--days, -d`: Number of days to look back (default: 7)  
 - `--max-tweets, -m`: Maximum number of tweets to retrieve (default: 25)
 
+## Reliability & Error Handling
+
+The visual tweet capture system includes comprehensive error handling and retry mechanisms to ensure reliable operation in production environments.
+
+### Browser Retry Mechanism
+
+The `VisualTweetCapturer` class includes configurable retry parameters:
+
+```python
+capturer = VisualTweetCapturer(
+    headless=True,
+    max_browser_retries=3,     # Number of browser setup attempts
+    retry_delay=2.0,           # Initial delay between retries (seconds)
+    retry_backoff=2.0          # Exponential backoff multiplier
+)
+```
+
+### Error Categorization
+
+The system intelligently categorizes errors:
+
+- **Transient Errors**: Network timeouts, WebDriver session issues → Retry with exponential backoff
+- **Permanent Errors**: Chrome not installed, permission denied → Fail fast (no retry)
+- **Unknown Errors**: Unexpected issues → Default to retry for safety
+
+### Multi-Level Fallback Strategy
+
+1. **Primary Browser Setup**: Standard Chrome configuration with retries
+2. **Fallback to Non-headless**: If headless mode fails, try visible browser
+3. **Minimal Configuration**: Stripped-down Chrome options for maximum compatibility
+4. **Page Loading Retries**: Progressive timeouts for network issues
+
+### Production Benefits
+
+- ✅ **Handles ChromeDriver download failures**
+- ✅ **Recovers from Chrome startup issues** 
+- ✅ **Manages network-related page loading problems**
+- ✅ **Prevents unnecessary retries for permanent failures**
+- ✅ **Provides clear troubleshooting feedback**
+- ✅ **Automatically cleans up failed browser instances**
+
 ## Output Structure
 
 ### Account-Based Organization
@@ -156,9 +200,10 @@ python test_individual_conversation_capture.py --account openai --days 10 --max-
 - 📊 **Content Type Clarity**: Instant visual distinction between content types
 - 🔍 **Scalable Structure**: Can easily add more accounts without confusion
 - 📁 **Clean Storage**: Each tweet has its own folder with multiple screenshots
-- 🚀 **Production Ready**: Perfect for serverless GenAI digest processing
+- 🚀 **Production Ready**: Perfect for serverless GenAI digest processing with robust error handling
 - 🔄 **Comprehensive Coverage**: Captures ALL content types within lookback window
 - 📋 **Clean Metadata**: No duplicate tweet information, optimized file sizes
 - ⚡ **Simplified Logic**: Removed Search API dependency for faster execution
+- 🛡️ **Reliable Operation**: Intelligent retry mechanism handles browser and network issues
 
-This feature enables robust, scalable visual capture of Twitter content for GenAI processing pipelines with clear account-based organization.
+This feature enables robust, scalable visual capture of Twitter content for GenAI processing pipelines with clear account-based organization and production-grade reliability.

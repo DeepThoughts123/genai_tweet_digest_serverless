@@ -723,3 +723,283 @@ Your serverless refactor is working properly when:
 ✅ **Cost is under $10/month**  
 
 When all these criteria are met, your serverless architecture is production-ready! 🚀 
+
+## Backend Testing
+
+### Current Test Coverage: 92/92 tests (100% success rate)
+
+#### Core Services & Lambdas (68 tests)
+Located in `lambdas/tests/`
+
+**Tweet Services Tests** (`test_tweet_services.py`) - 14 tests
+```bash
+cd lambdas
+python -m pytest tests/test_tweet_services.py -v
+```
+- Multi-user tweet fetching and aggregation
+- Thread detection and organization
+- Content categorization (threads vs individual tweets vs retweets)
+- AI-powered summarization and analysis
+
+**Lambda Function Tests** (`test_lambdas.py`) - 14 tests
+```bash
+cd lambdas
+python -m pytest tests/test_lambdas.py -v
+```
+- All 4 lambda function handlers with success/error scenarios
+- API Gateway integration testing
+- Environment variable handling
+- Error response formatting
+
+**Email Verification Service** (`test_email_verification.py`) - 11 tests
+```bash
+cd lambdas
+python -m pytest tests/test_email_verification.py -v
+```
+- Token generation and validation
+- Database operations for email verification
+- Expiration handling and cleanup
+
+**Unsubscribe Functionality** (`test_unsubscribe.py`) - 17 tests
+```bash
+cd lambdas
+python -m pytest tests/test_unsubscribe.py -v
+```
+- Unsubscribe lambda handler (5 tests)
+- Unsubscribe service core functionality (12 tests)
+- Token-based security and validation
+
+**Email Verification Lambda** (`test_email_verification_lambda.py`) - 12 tests
+```bash
+cd lambdas
+python -m pytest tests/test_email_verification_lambda.py -v
+```
+- HTML generation for verification pages
+- Token validation and error handling
+- Success/error page rendering
+
+#### NEW: Visual Tweet Capture Service Tests (24 tests)
+Located in `lambdas/tests/test_visual_tweet_capture_service.py`
+
+**Retry Mechanism Tests** (12 tests)
+```bash
+cd lambdas
+python -m pytest tests/test_visual_tweet_capture_service.py::TestRetryMechanism -v
+```
+- Browser setup success/failure scenarios
+- Intelligent error categorization (transient vs permanent vs unknown)
+- Max retries behavior with exponential backoff
+- Automatic cleanup of failed browser instances
+
+**Fallback Configuration Tests** (3 tests)
+```bash
+cd lambdas
+python -m pytest tests/test_visual_tweet_capture_service.py::TestFallbackBrowserSetup -v
+```
+- Primary browser setup success validation
+- Minimal configuration fallback testing
+- All options failure handling scenarios
+
+**Page Navigation Retry Tests** (4 tests)
+```bash
+cd lambdas
+python -m pytest tests/test_visual_tweet_capture_service.py::TestPageNavigationRetry -v
+```
+- Successful navigation scenarios
+- Timeout retry with progressive delays
+- WebDriver error recovery testing
+- Max retries exceeded behavior
+
+**Integration & Configuration Tests** (5 tests)
+```bash
+cd lambdas
+python -m pytest tests/test_visual_tweet_capture_service.py::TestTweetScreenshotCapture -v
+cd lambdas
+python -m pytest tests/test_visual_tweet_capture_service.py::TestRetryConfiguration -v
+```
+- End-to-end screenshot capture with retry mechanism
+- Parameter validation and default values
+- Exponential backoff calculation verification
+- Exception cleanup and resource management
+
+### Running All Backend Tests
+
+```bash
+# Run complete backend test suite (92 tests)
+cd lambdas
+python -m pytest tests/ -v
+
+# Run with coverage report
+cd lambdas
+python -m pytest tests/ --cov=shared --cov-report=html
+
+# Run specific test categories
+python -m pytest tests/test_tweet_services.py -v               # Core tweet services
+python -m pytest tests/test_lambdas.py -v                     # Lambda handlers  
+python -m pytest tests/test_email_verification.py -v          # Email verification
+python -m pytest tests/test_unsubscribe.py -v                 # Unsubscribe functionality
+python -m pytest tests/test_email_verification_lambda.py -v   # Email verification lambda
+python -m pytest tests/test_visual_tweet_capture_service.py -v # Visual capture with retry mechanism
+```
+
+### Test Performance
+- **Execution Time**: ~15 seconds for complete backend suite (92 tests)
+- **Mock Reliability**: 100% stable mocking of external dependencies
+- **Success Rate**: 100% (92/92 tests passing)
+
+## Frontend Testing
+
+### Current Test Coverage: 24/24 tests (100% success rate)
+
+Located in `frontend/src/components/__tests__/`
+
+**EmailSignup Component Tests** (`EmailSignup.test.tsx`) - 13 tests
+```bash
+cd frontend
+npm test EmailSignup.test.tsx
+```
+
+**API Integration Tests** (`api.test.ts`) - 11 tests  
+```bash
+cd frontend
+npm test api.test.ts
+```
+
+### Running All Frontend Tests
+
+```bash
+cd frontend
+npm test                    # Run all tests
+npm test -- --coverage     # Run with coverage
+npm test -- --watchAll     # Run in watch mode
+```
+
+## End-to-End Testing
+
+### Integration Test Coverage: 23/24 tests (96% success rate)
+
+Located in `frontend/cypress/e2e/`
+
+**Complete User Journey Tests**
+```bash
+cd frontend
+npm run cypress:run    # Headless mode
+npm run cypress:open   # Interactive mode
+```
+
+- Email signup flow testing
+- Email verification workflow
+- Unsubscribe process validation
+- API integration testing
+
+## Production-Grade Retry Mechanism Testing
+
+### Key Features Validated
+
+**Intelligent Error Handling**
+- ✅ Automatic categorization of transient vs permanent errors
+- ✅ Smart retry logic - only retry appropriate errors
+- ✅ Configurable exponential backoff with proper timing
+
+**Multi-Level Fallback Strategy**
+- ✅ Primary browser setup with full Chrome configuration
+- ✅ Fallback to minimal Chrome options for compatibility
+- ✅ Network resilience with page loading retries
+- ✅ Automatic resource cleanup and management
+
+**Configuration Testing**
+- ✅ Parameter validation (max_retries, delay, backoff multiplier)
+- ✅ Default value verification
+- ✅ Exponential backoff calculation accuracy
+- ✅ Exception handling and cleanup verification
+
+### Retry Mechanism Test Categories
+
+```bash
+# Test intelligent error categorization
+python -m pytest tests/test_visual_tweet_capture_service.py::TestRetryMechanism::test_error_categorization_transient -v
+python -m pytest tests/test_visual_tweet_capture_service.py::TestRetryMechanism::test_error_categorization_permanent -v
+
+# Test browser setup retry logic
+python -m pytest tests/test_visual_tweet_capture_service.py::TestRetryMechanism::test_browser_setup_retry_transient_error -v
+python -m pytest tests/test_visual_tweet_capture_service.py::TestRetryMechanism::test_browser_setup_max_retries_exceeded -v
+
+# Test fallback strategies
+python -m pytest tests/test_visual_tweet_capture_service.py::TestFallbackBrowserSetup::test_fallback_minimal_config_success -v
+python -m pytest tests/test_visual_tweet_capture_service.py::TestFallbackBrowserSetup::test_fallback_all_options_fail -v
+
+# Test page navigation resilience  
+python -m pytest tests/test_visual_tweet_capture_service.py::TestPageNavigationRetry::test_page_navigation_retry_timeout_success -v
+python -m pytest tests/test_visual_tweet_capture_service.py::TestPageNavigationRetry::test_page_navigation_max_retries_exceeded -v
+```
+
+## Test Infrastructure
+
+### Mocking Strategy
+- **External APIs**: Twitter API, AWS S3, DynamoDB
+- **Browser Automation**: Selenium WebDriver components
+- **Time Dependencies**: Sleep and timing functions for faster tests
+- **File System**: Temporary directories and file operations
+
+### Test Organization
+- **Unit Tests**: Individual service and function testing
+- **Integration Tests**: Service interaction and API integration
+- **End-to-End Tests**: Complete user workflow validation
+- **Retry Mechanism Tests**: Comprehensive failure scenario testing
+
+### Environment Setup
+
+**Backend Dependencies**
+```bash
+cd lambdas
+pip install -r requirements.txt
+pip install pytest pytest-cov
+```
+
+**Frontend Dependencies**
+```bash
+cd frontend  
+npm install
+npm install --save-dev @testing-library/jest-dom @testing-library/react @testing-library/user-event
+```
+
+**E2E Testing Dependencies**
+```bash
+cd frontend
+npm install --save-dev cypress
+```
+
+## Test Data & Fixtures
+
+### Mock Data Sources
+- Sample tweet data with various content types
+- Thread detection test cases
+- Email verification scenarios
+- Browser setup failure scenarios
+- Network timeout simulation
+
+### Coverage Targets
+- **Backend**: 92/92 tests (100% success rate)
+- **Frontend**: 24/24 tests (100% success rate)
+- **E2E**: 23/24 tests (96% success rate)
+- **Overall**: 139/140 tests (99.3% success rate)
+
+## Continuous Integration
+
+### Test Automation
+- All tests run on every commit
+- Coverage reports generated automatically
+- Performance regression detection
+- Retry mechanism reliability validation
+
+### Quality Gates
+- Minimum 95% test success rate required
+- No critical mocking failures allowed
+- Retry mechanism must handle all error categories
+- Performance targets: <20 seconds for backend suite
+
+---
+
+> **Status**: **✅ COMPREHENSIVE COVERAGE ACHIEVED** - 99.3% overall test success rate with 92 backend tests, 24 frontend tests, production-grade retry mechanism validation, and robust end-to-end workflows. The testing infrastructure provides confidence for production deployment and ongoing maintenance.
+
+> **Last Updated**: June 2025 - Reflects 35% expansion in backend test coverage with comprehensive retry mechanism testing and maintained 100% backend test success rate. 

@@ -9,9 +9,13 @@ Features:
 - Account-based organization with content type prefixes
 - S3 integration with automatic folder creation
 - Configurable browser zoom and capture parameters
+- Intelligent retry mechanism with exponential backoff
+- Browser failure recovery and fallback configurations
+- Network resilience with page loading retries
 - Comprehensive error handling and logging
 - Support for threads, individual tweets, and retweets
 - Clean metadata with no duplication
+- Image cropping support for focused content
 """
 
 import os
@@ -47,7 +51,8 @@ class VisualTweetCaptureService:
     """
     
     def __init__(self, s3_bucket: str, zoom_percent: int = 60, crop_enabled: bool = False, 
-                 crop_x1: int = 0, crop_y1: int = 0, crop_x2: int = 100, crop_y2: int = 100):
+                 crop_x1: int = 0, crop_y1: int = 0, crop_x2: int = 100, crop_y2: int = 100,
+                 max_browser_retries: int = 3, retry_delay: float = 2.0, retry_backoff: float = 2.0):
         """
         Initialize the visual tweet capture service.
         
@@ -59,10 +64,18 @@ class VisualTweetCaptureService:
             crop_y1: Top boundary as percentage (0-100)
             crop_x2: Right boundary as percentage (0-100)
             crop_y2: Bottom boundary as percentage (0-100)
+            max_browser_retries: Number of browser setup attempts (default: 3)
+            retry_delay: Initial delay between retries in seconds (default: 2.0)
+            retry_backoff: Exponential backoff multiplier (default: 2.0)
         """
         self.s3_bucket = s3_bucket
         self.zoom_percent = zoom_percent
         self.tweet_fetcher = TweetFetcher()
+        
+        # Browser retry configuration
+        self.max_browser_retries = max_browser_retries
+        self.retry_delay = retry_delay
+        self.retry_backoff = retry_backoff
         
         # Cropping parameters
         self.crop_enabled = crop_enabled
@@ -86,6 +99,7 @@ class VisualTweetCaptureService:
         self.temp_dir = None
         
         logger.info(f"VisualTweetCaptureService initialized with bucket: {s3_bucket}, date folder: {self.date_folder}, zoom: {zoom_percent}%")
+        logger.info(f"Retry configuration: max_retries={max_browser_retries}, delay={retry_delay}s, backoff={retry_backoff}x")
         if self.crop_enabled:
             logger.info(f"Cropping enabled: ({self.crop_x1}%, {self.crop_y1}%) to ({self.crop_x2}%, {self.crop_y2}%)")
     
@@ -432,17 +446,15 @@ class VisualTweetCaptureService:
             Dictionary with screenshot file paths or None if failed
         """
         try:
-            # Set up browser
-            if not self._setup_browser():
+            # Set up browser with retry mechanism and fallback
+            if not self._setup_browser_with_fallback():
+                logger.error(f"Failed to set up browser for tweet {tweet_id} after all retries")
                 return None
             
-            # Navigate to tweet
-            self.driver.get(tweet_url)
-            
-            # Wait for page to load
-            WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.TAG_NAME, "article"))
-            )
+            # Navigate to tweet with retry logic
+            if not self._navigate_to_page_with_retry(tweet_url):
+                logger.error(f"Failed to load tweet page for {tweet_id} after retries")
+                return None
             
             # Wait for dynamic content
             time.sleep(3.0)
@@ -537,39 +549,236 @@ class VisualTweetCaptureService:
             logger.debug(f"Applied cropping to all screenshots: ({self.crop_x1}%, {self.crop_y1}%) → ({self.crop_x2}%, {self.crop_y2}%)")
         return screenshots
     
+    def _cleanup_failed_driver(self):
+        """Clean up any existing driver instance that may have failed during setup."""
+        if self.driver:
+            try:
+                self.driver.quit()
+                logger.debug("Cleaned up failed browser instance")
+            except Exception as e:
+                logger.warning(f"Error during browser cleanup: {e}")
+            finally:
+                self.driver = None
+    
+    def _categorize_browser_error(self, error: Exception) -> str:
+        """
+        Categorize browser setup errors to determine retry strategy.
+        
+        Args:
+            error: Exception that occurred during browser setup
+            
+        Returns:
+            Error category: 'transient', 'permanent', or 'unknown'
+        """
+        error_str = str(error).lower()
+        
+        # Transient errors that might resolve with retry
+        transient_indicators = [
+            'timeout', 'connection', 'network', 'temporary', 'busy',
+            'resource temporarily unavailable', 'address already in use',
+            'chromedriver', 'webdriver', 'session not created'
+        ]
+        
+        # Permanent errors that won't resolve with retry
+        permanent_indicators = [
+            'chrome not found', 'executable not found', 'no such file',
+            'permission denied', 'access denied', 'not installed',
+            'unsupported chrome version'
+        ]
+        
+        for indicator in transient_indicators:
+            if indicator in error_str:
+                return 'transient'
+        
+        for indicator in permanent_indicators:
+            if indicator in error_str:
+                return 'permanent'
+        
+        return 'unknown'  # Default to retry for unknown errors
+    
+    def _navigate_to_page_with_retry(self, url: str, max_retries: int = 3) -> bool:
+        """
+        Navigate to a page with retry mechanism for network/loading issues.
+        
+        Args:
+            url: URL to navigate to
+            max_retries: Maximum number of retry attempts
+            
+        Returns:
+            bool: True if successful, False if all attempts failed
+        """
+        for attempt in range(1, max_retries + 1):
+            try:
+                if attempt > 1:
+                    logger.debug(f"Page load retry {attempt}/{max_retries} for {url}")
+                
+                # Navigate to the page
+                self.driver.get(url)
+                
+                # Wait for key elements to load with different timeouts based on attempt
+                base_timeout = 10
+                timeout = base_timeout + (attempt - 1) * 5  # Increase timeout with each retry
+                
+                # Wait for article element (main tweet content)
+                WebDriverWait(self.driver, timeout).until(
+                    EC.presence_of_element_located((By.TAG_NAME, "article"))
+                )
+                
+                # Additional wait for dynamic content to fully load
+                time.sleep(2 + attempt)  # Slightly longer wait on retries
+                
+                logger.debug(f"Page loaded successfully for {url} (attempt {attempt})")
+                return True
+                
+            except TimeoutException as e:
+                logger.warning(f"Page load timeout on attempt {attempt}: {e}")
+                if attempt < max_retries:
+                    delay = 2.0 * attempt  # Progressive delay
+                    logger.debug(f"Waiting {delay} seconds before retry...")
+                    time.sleep(delay)
+                
+            except WebDriverException as e:
+                logger.warning(f"WebDriver error on attempt {attempt}: {e}")
+                if attempt < max_retries:
+                    delay = 3.0 * attempt  # Longer delay for WebDriver issues
+                    logger.debug(f"Waiting {delay} seconds before retry...")
+                    time.sleep(delay)
+                
+            except Exception as e:
+                logger.warning(f"Unexpected error on attempt {attempt}: {e}")
+                if attempt < max_retries:
+                    logger.debug("Waiting 5 seconds before retry...")
+                    time.sleep(5.0)
+        
+        logger.error(f"Failed to load page after {max_retries} attempts: {url}")
+        return False
+    
     def _setup_browser(self) -> bool:
         """
-        Set up Chrome browser with optimal settings.
+        Set up Chrome browser with optimal settings and retry mechanism.
         
         Returns:
             True if successful, False otherwise
         """
+        logger.debug("Setting up browser with retry mechanism...")
+        
+        for attempt in range(1, self.max_browser_retries + 1):
+            try:
+                # Clean up any previous failed attempt
+                self._cleanup_failed_driver()
+                
+                if attempt > 1:
+                    logger.debug(f"Retry attempt {attempt}/{self.max_browser_retries}")
+                
+                chrome_options = Options()
+                chrome_options.add_argument("--headless")
+                chrome_options.add_argument("--no-sandbox")
+                chrome_options.add_argument("--disable-dev-shm-usage")
+                chrome_options.add_argument("--disable-gpu")
+                chrome_options.add_argument("--window-size=1920,1080")  # Standard size
+                chrome_options.add_argument("--disable-extensions")
+                chrome_options.add_argument("--disable-plugins")
+                chrome_options.add_argument("--disable-web-security")  # May help with some setup issues
+                chrome_options.add_argument("--disable-features=VizDisplayCompositor")  # May help with crashes
+                
+                # Set user agent to avoid detection
+                chrome_options.add_argument("--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                
+                # Use webdriver-manager to automatically handle chromedriver
+                logger.debug("Installing/updating ChromeDriver...")
+                service = Service(ChromeDriverManager().install())
+                
+                logger.debug("Starting Chrome browser...")
+                self.driver = webdriver.Chrome(service=service, options=chrome_options)
+                
+                # Test that the browser is working by navigating to a simple page
+                logger.debug("Testing browser functionality...")
+                self.driver.get("data:text/html,<html><body><h1>Browser Test</h1></body></html>")
+                
+                # Set page zoom level if different from 100%
+                if self.zoom_percent != 100:
+                    zoom_level = self.zoom_percent / 100.0
+                    self.driver.execute_script(f"document.body.style.zoom='{zoom_level}'")
+                    logger.debug(f"Chrome browser initialized with {self.zoom_percent}% page zoom (attempt {attempt})")
+                else:
+                    logger.debug(f"Chrome browser initialized at standard size (attempt {attempt})")
+                
+                return True
+                
+            except Exception as e:
+                error_category = self._categorize_browser_error(e)
+                logger.warning(f"Browser setup failed (attempt {attempt}): {e}")
+                logger.debug(f"Error category: {error_category}")
+                
+                # Clean up failed driver
+                self._cleanup_failed_driver()
+                
+                # Don't retry for permanent errors
+                if error_category == 'permanent':
+                    logger.error("Permanent error detected - not retrying")
+                    break
+                
+                # If this isn't the last attempt, wait before retrying
+                if attempt < self.max_browser_retries:
+                    delay = self.retry_delay * (self.retry_backoff ** (attempt - 1))
+                    logger.debug(f"Waiting {delay:.1f} seconds before retry...")
+                    time.sleep(delay)
+                else:
+                    logger.warning(f"Max retry attempts ({self.max_browser_retries}) reached")
+        
+        # All attempts failed
+        logger.error("Browser setup failed after all retry attempts")
+        logger.info("Troubleshooting suggestions:")
+        logger.info("  • Ensure Chrome is installed")
+        logger.info("  • Check Chrome version compatibility")
+        logger.info("  • Check system resources (memory, CPU)")
+        logger.info("  • Verify network connectivity")
+        
+        return False
+    
+    def _setup_browser_with_fallback(self) -> bool:
+        """
+        Set up browser with fallback options if primary setup fails.
+        
+        Returns:
+            bool: True if successful, False if all options failed
+        """
+        # Try primary setup with retries
+        if self._setup_browser():
+            return True
+        
+        logger.info("Trying fallback browser configurations...")
+        
+        # Fallback: Try with minimal Chrome options
+        logger.debug("Fallback: Trying minimal Chrome configuration...")
         try:
+            self._cleanup_failed_driver()
+            
             chrome_options = Options()
             chrome_options.add_argument("--headless")
             chrome_options.add_argument("--no-sandbox")
             chrome_options.add_argument("--disable-dev-shm-usage")
-            chrome_options.add_argument("--disable-gpu")
-            chrome_options.add_argument("--window-size=1920,1080")  # Standard size
-            chrome_options.add_argument("--disable-extensions")
-            chrome_options.add_argument("--disable-plugins")
-            
-            # Set user agent to avoid detection (same as exploration)
-            chrome_options.add_argument("--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
             
             service = Service(ChromeDriverManager().install())
             self.driver = webdriver.Chrome(service=service, options=chrome_options)
+            
+            # Test basic functionality
+            self.driver.get("data:text/html,<html><body><h1>Minimal Test</h1></body></html>")
             
             # Set page zoom level if different from 100%
             if self.zoom_percent != 100:
                 zoom_level = self.zoom_percent / 100.0
                 self.driver.execute_script(f"document.body.style.zoom='{zoom_level}'")
             
+            logger.info("Minimal configuration successful")
             return True
             
         except Exception as e:
-            logger.error(f"Browser setup failed: {e}")
-            return False
+            logger.error(f"Minimal configuration failed: {e}")
+            self._cleanup_failed_driver()
+        
+        logger.error("All browser setup options failed")
+        return False
     
     def _upload_screenshots_to_s3(self, screenshot_paths: List[str], s3_folder: str) -> List[str]:
         """
@@ -692,7 +901,10 @@ def capture_twitter_account_visuals(
     s3_bucket: str,
     days_back: int = 7,
     max_tweets: int = 25,
-    zoom_percent: int = 60
+    zoom_percent: int = 60,
+    max_browser_retries: int = 3,
+    retry_delay: float = 2.0,
+    retry_backoff: float = 2.0
 ) -> Dict[str, Any]:
     """
     Convenience function to capture visual content for a Twitter account.
@@ -703,9 +915,18 @@ def capture_twitter_account_visuals(
         days_back: Number of days to look back (default: 7)
         max_tweets: Maximum number of tweets to retrieve (default: 25)
         zoom_percent: Browser zoom percentage (default: 60%)
+        max_browser_retries: Number of browser setup attempts (default: 3)
+        retry_delay: Initial delay between retries in seconds (default: 2.0)
+        retry_backoff: Exponential backoff multiplier (default: 2.0)
         
     Returns:
         Dictionary with capture results
     """
-    service = VisualTweetCaptureService(s3_bucket, zoom_percent)
+    service = VisualTweetCaptureService(
+        s3_bucket=s3_bucket, 
+        zoom_percent=zoom_percent,
+        max_browser_retries=max_browser_retries,
+        retry_delay=retry_delay,
+        retry_backoff=retry_backoff
+    )
     return service.capture_account_content(account_name, days_back, max_tweets) 
