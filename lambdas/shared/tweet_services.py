@@ -550,6 +550,48 @@ class TweetFetcher:
             print(f"❌ Error detecting threads for @{username}: {e}")
             return []
 
+    def fetch_tweets(self, usernames: List[str], days_back: int = 7, max_tweets_per_user: int = 10) -> List[Dict[str, Any]]:
+        """
+        Fetch tweets from multiple users for digest generation.
+        
+        Args:
+            usernames: List of Twitter usernames (without @)
+            days_back: How many days back to search
+            max_tweets_per_user: Maximum tweets per user
+            
+        Returns:
+            List of tweet data dictionaries suitable for categorization and summarization
+        """
+        print(f"🔍 Fetching tweets from {len(usernames)} accounts")
+        all_tweets = []
+        
+        for username in usernames:
+            try:
+                # Use thread detection to get comprehensive tweet data
+                user_tweets = self.detect_and_group_threads(
+                    username=username, 
+                    days_back=days_back, 
+                    max_tweets=max_tweets_per_user
+                )
+                
+                if user_tweets:
+                    print(f"✅ @{username}: {len(user_tweets)} items")
+                    all_tweets.extend(user_tweets)
+                else:
+                    print(f"📭 @{username}: No tweets found")
+                    
+            except Exception as e:
+                print(f"❌ Error fetching tweets for @{username}: {e}")
+                continue
+        
+        # Sort all tweets by engagement (likes + retweets) descending
+        all_tweets.sort(key=lambda x: x['metrics']['likes'] + x['metrics']['retweets'], reverse=True)
+        
+        print(f"📊 Total tweets collected: {len(all_tweets)}")
+        print(f"📊 Top engagement: {all_tweets[0]['metrics']['likes'] + all_tweets[0]['metrics']['retweets']} ({all_tweets[0]['author']['username']})" if all_tweets else "No tweets")
+        
+        return all_tweets
+
 class TweetCategorizer:
     """Simplified tweet categorizer for Lambda."""
     

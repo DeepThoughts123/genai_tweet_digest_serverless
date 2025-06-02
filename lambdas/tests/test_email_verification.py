@@ -5,6 +5,7 @@ Test cases for email verification service.
 import pytest
 import boto3
 import uuid
+import json
 from datetime import datetime, timedelta
 from moto import mock_aws
 from unittest.mock import patch, MagicMock
@@ -320,7 +321,7 @@ class TestSubscriptionWithVerification:
         
         # Check response
         assert response['statusCode'] == 201
-        body = eval(response['body'])  # Convert string to dict
+        body = json.loads(response['body'])  # Use json.loads instead of eval
         assert body['success'] is True
         assert 'Verification email sent' in body['message']
     
@@ -364,7 +365,7 @@ class TestSubscriptionWithVerification:
         
         # Check response
         assert response['statusCode'] == 200
-        body = eval(response['body'])
+        body = json.loads(response['body'])  # Use json.loads instead of eval
         assert body['success'] is True
         assert 'resent' in body['message']
     
@@ -400,7 +401,7 @@ class TestSubscriptionWithVerification:
         
         # Check response
         assert response['statusCode'] == 409
-        body = eval(response['body'])
+        body = json.loads(response['body'])  # Use json.loads instead of eval
         assert body['success'] is False
         assert 'already subscribed' in body['message']
 

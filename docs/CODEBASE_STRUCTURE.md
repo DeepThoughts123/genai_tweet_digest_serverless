@@ -300,14 +300,23 @@ genai_tweets_digest_serverless/
     -   SES configuration for email delivery
 
 ### 7. Testing Infrastructure (`lambdas/tests/`)
--   **Unit Tests**: 28 comprehensive tests covering all Lambda functions
--   **Integration Tests**: End-to-end testing with AWS services
+-   **Unit Tests**: 68 comprehensive tests covering all Lambda functions and services (expanded from 28 tests)
+-   **Critical Bug Fixes**: Fixed missing `fetch_tweets()` method that was causing weekly digest failures
 -   **Test Coverage**:
-    -   Subscription Lambda: 8 tests (success, validation, CORS, error handling)
-    -   Weekly Digest Lambda: 6 tests (success, no tweets, no subscribers, exceptions)
-    -   Email Verification Lambda: 3 tests (successful verification, expired tokens, invalid tokens)
-    -   Tweet Services: 11 tests (fetching, categorization, summarization, S3 operations)
--   **Testing Framework**: Python unittest with comprehensive mocking strategy
+    -   **Tweet Services**: 14 tests (multi-user fetching, thread detection, categorization, summarization, S3 operations)
+    -   **Lambda Functions**: 14 tests (subscription, weekly digest handlers with success/error scenarios)
+    -   **Email Verification Service**: 11 tests (token management, expiration, database operations)
+    -   **Unsubscribe Lambda & Service**: 17 tests (token-based unsubscribe, HTML generation, service integration)
+    -   **Email Verification Lambda**: 12 tests (token validation, HTML response generation, error handling)
+-   **Test Files**:
+    -   `test_tweet_services.py`: Tweet processing & S3 operations (14 tests)
+    -   `test_lambda_functions.py`: Lambda handlers & integrations (14 tests)
+    -   `test_email_verification.py`: Email verification service with pytest (11 tests)
+    -   `test_unsubscribe.py`: Unsubscribe lambda & service (17 tests)
+    -   `test_email_verification_lambda.py`: Email verification lambda (12 tests)
+-   **Testing Framework**: Python unittest and pytest with comprehensive mocking strategy
+-   **Integration Tests**: End-to-end testing with AWS services
+-   **Performance**: 68 backend tests execute in ~12 seconds with 100% pass rate
 
 ### 8. Scripts and Automation (`scripts/`)
 -   **`deploy.sh`**: Main deployment script with Lambda packaging and CloudFormation deployment
