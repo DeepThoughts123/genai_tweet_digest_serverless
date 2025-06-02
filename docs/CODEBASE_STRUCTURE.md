@@ -87,7 +87,14 @@ genai_tweets_digest_serverless/
 │   ├── AMAZON_SES_INTEGRATION.md # SES integration documentation
 │   └── serverless-migration-plan.md # Initial serverless migration plan
 ├── exploration/              # Research and development
-│   └── visual_tweet_capture/ # Visual tweet capture development & testing
+│   ├── visual_tweet_capture/ # Visual tweet capture development & testing
+│   └── tweet_processing/     # Advanced tweet processing pipeline
+│       ├── capture_and_extract.py # Complete tweet capture and text extraction pipeline with argparse
+│       ├── tweet_text_extractor.py # Gemini 2.0 Flash multimodal text extraction from screenshots
+│       ├── test_text_extraction.py # Comprehensive testing for text extraction features
+│       ├── reorganize_captures.py # Utility to reorganize tweet captures by account
+│       ├── README.md         # Tweet processing pipeline documentation
+│       └── visual_captures/  # Local tweet capture storage with account-based organization
 ├── frontend/                 # Original Next.js development source
 │   ├── src/                  # React/Next.js source code
 │   ├── package.json          # Node.js dependencies
@@ -222,7 +229,38 @@ genai_tweets_digest_serverless/
     -   Account summaries with success metrics and folder references
     -   Environment variable configuration (`S3_BUCKET_TWEET_CAPTURED`)
 
-### 3. Static Frontend (`frontend-static/`)
+### 3. Tweet Processing Pipeline (`exploration/tweet_processing/`)
+-   **Purpose**: Advanced development and testing environment for tweet capture and multimodal text extraction
+-   **Features**:
+    -   **Complete Pipeline Automation**: End-to-end tweet capture and text extraction with argparse CLI interface
+    -   **Professional Command Line Interface**: Flexible parameter configuration via argparse with help documentation
+    -   **Multimodal Text Extraction**: Gemini 2.0 Flash integration for extracting complete text from tweet screenshots
+    -   **Rate Limit Resilience**: Intelligent fallback with URL-based username extraction when API fails
+    -   **Configurable Zoom Levels**: Adjustable browser zoom (25-200%) for optimal screenshot quality
+    -   **Account-Based Organization**: Automatic folder structure with proper account attribution
+    -   **Comprehensive Testing**: Complete test suite for both local and S3 processing scenarios
+    -   **Metadata Enhancement**: AI-generated summaries and complete text extraction stored in metadata files
+-   **Key Components**:
+    -   **`capture_and_extract.py`**: Main pipeline script with argparse interface supporting:
+        -   Multiple account processing (`--accounts user1 user2 user3`)
+        -   Configurable time ranges (`--days-back 7`)
+        -   Tweet limits (`--max-tweets 25`) 
+        -   Zoom settings (`--zoom-percent 50`)
+        -   Automated execution (`--no-confirm`)
+    -   **`tweet_text_extractor.py`**: Multimodal AI text extraction service featuring:
+        -   Base64 image encoding for screenshot analysis
+        -   Complete text extraction from visual content
+        -   AI-generated 1-2 sentence summaries
+        -   Metadata enhancement with full_text and summary fields
+        -   Content type detection (processes individual tweets/retweets, skips conversations)
+    -   **`test_text_extraction.py`**: Comprehensive testing framework supporting:
+        -   S3 capture testing with temporary downloads
+        -   Local capture testing with flexible folder structure support
+        -   Single folder debugging mode
+        -   Both legacy and new date-based folder structures
+-   **Production Readiness**: Complete error handling, cleanup, flexible deployment options, cost-conscious API usage
+
+### 4. Static Frontend (`frontend-static/`)
 -   **Technology**: Next.js static export with React components
 -   **Hosting**: Amazon S3 with CloudFront CDN distribution
 -   **Features**:
@@ -232,7 +270,7 @@ genai_tweets_digest_serverless/
     -   Error handling for all subscription scenarios
     -   Mobile-optimized responsive design
 
-### 4. Data Storage and Configuration
+### 5. Data Storage and Configuration
 
 #### **DynamoDB Tables**
 -   **Subscribers Table**: Stores subscriber information with verification status
@@ -246,7 +284,7 @@ genai_tweets_digest_serverless/
 -   **Configuration files**: `accounts.json` with Twitter accounts to monitor
 -   **Static website hosting**: Frontend files with CloudFront distribution
 
-### 5. Infrastructure as Code (`infrastructure-aws/`)
+### 6. Infrastructure as Code (`infrastructure-aws/`)
 -   **`cloudformation-template.yaml`**: Complete infrastructure template with all AWS resources
 -   **`cloudformation-template-minimal.yaml`**: Minimal setup for development/testing
 -   **Resources Defined**:
@@ -258,7 +296,7 @@ genai_tweets_digest_serverless/
     -   EventBridge rules for automated scheduling
     -   SES configuration for email delivery
 
-### 6. Testing Infrastructure (`lambdas/tests/`)
+### 7. Testing Infrastructure (`lambdas/tests/`)
 -   **Unit Tests**: 28 comprehensive tests covering all Lambda functions
 -   **Integration Tests**: End-to-end testing with AWS services
 -   **Test Coverage**:
@@ -268,7 +306,7 @@ genai_tweets_digest_serverless/
     -   Tweet Services: 11 tests (fetching, categorization, summarization, S3 operations)
 -   **Testing Framework**: Python unittest with comprehensive mocking strategy
 
-### 7. Scripts and Automation (`scripts/`)
+### 8. Scripts and Automation (`scripts/`)
 -   **`deploy.sh`**: Main deployment script with Lambda packaging and CloudFormation deployment
 -   **`deploy-frontend.sh`**: Frontend-specific deployment automation
 -   **`setup-frontend.sh`**: Frontend build and preparation script
@@ -297,6 +335,10 @@ SUBSCRIBERS_TABLE=table-name
 DATA_BUCKET=bucket-name
 ENVIRONMENT=production
 ```
+
+**Tweet Processing Pipeline Variables:**
+- `GEMINI_API_KEY`: Required for multimodal text extraction from screenshots
+- `S3_BUCKET_TWEET_CAPTURED`: S3 bucket for storing visual captures and metadata
 
 ### Deployment Process
 1.  **Infrastructure Deployment**: 
@@ -357,6 +399,7 @@ ENVIRONMENT=production
 
 ### Technical Documentation
 -   **[visual_tweet_capture_service.md](./visual_tweet_capture_service.md)**: Production-ready visual tweet capture service with S3 integration
+-   **[tweet_processing_pipeline.md](./tweet_processing_pipeline.md)**: Advanced tweet processing pipeline with multimodal text extraction
 -   **[AWS_CLI_BEST_PRACTICES.md](./AWS_CLI_BEST_PRACTICES.md)**: AWS CLI best practices and production deployment lessons
 -   **[E2E_TESTING_PLAN.md](./E2E_TESTING_PLAN.md)**: Comprehensive end-to-end testing strategy
 -   **[EMAIL_VERIFICATION_SETUP.md](./EMAIL_VERIFICATION_SETUP.md)**: Email verification system implementation
@@ -374,4 +417,4 @@ ENVIRONMENT=production
 
 ---
 
-> **Last Updated**: June 2025 - Reflects production-ready serverless architecture with complete email verification system, Visual Tweet Capture Service with S3 integration, and real-world validation results.
+> **Last Updated**: June 2025 - Reflects production-ready serverless architecture with complete email verification system, Visual Tweet Capture Service with S3 integration, advanced Tweet Processing Pipeline with multimodal text extraction, and real-world validation results.

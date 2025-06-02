@@ -2,6 +2,8 @@
 
 A production-ready service for capturing visual representations of Twitter content and storing them in S3 with organized folder structure.
 
+> **🚀 New**: For a complete end-to-end solution that combines visual capture with multimodal text extraction, see the [Tweet Processing Pipeline](./tweet_processing_pipeline.md) in `exploration/tweet_processing/`. It includes argparse CLI, rate limit resilience, and Gemini 2.0 Flash text extraction.
+
 > **Note**: This service implements the exact same capture logic that was thoroughly tested in the `exploration/visual_tweet_capture/` folder, ensuring consistent behavior and reliability.
 
 ## Overview

@@ -161,23 +161,62 @@ class VisualTweetCapturer:
         # Default to individual tweet
         return "tweet"
     
-    def _get_account_name(self, api_data: dict) -> str:
+    def _extract_username_from_url(self, tweet_url: str) -> str:
         """
-        Extract account name from API data.
+        Extract username from tweet URL.
+        
+        Args:
+            tweet_url: Tweet URL in format https://twitter.com/username/status/tweet_id
+            
+        Returns:
+            Username without @ symbol, or "unknown" if extraction fails
+        """
+        import re
+        # Pattern to match Twitter URL: https://twitter.com/username/status/tweet_id
+        match = re.search(r'twitter\.com/([^/]+)/status/', tweet_url)
+        if match:
+            return match.group(1)
+        
+        # Also try x.com format
+        match = re.search(r'x\.com/([^/]+)/status/', tweet_url)
+        if match:
+            return match.group(1)
+        
+        return "unknown"
+    
+    def _get_account_name(self, api_data: dict, tweet_url: str = None) -> str:
+        """
+        Extract account name from API data or tweet URL as fallback.
         
         Args:
             api_data: Tweet data from API
+            tweet_url: Tweet URL as fallback source for username
             
         Returns:
             Account username (without @)
         """
+        # First try to get from API data
         if api_data and 'author' in api_data and 'username' in api_data['author']:
-            return api_data['author']['username']
+            username = api_data['author']['username']
+            if username != 'unknown':
+                return username
+        
+        # Fallback to extracting from URL
+        if tweet_url:
+            username = self._extract_username_from_url(tweet_url)
+            if username != 'unknown':
+                print(f"📝 Extracted account name from URL: @{username}")
+                return username
+        
         return "unknown"
     
-    def capture_tweet_visually(self, tweet_url: str) -> dict:
+    def capture_tweet_visually(self, tweet_url: str, zoom_percent: int = 100) -> dict:
         """
         Capture complete visual representation of a tweet thread.
+        
+        Args:
+            tweet_url: URL of the tweet to capture
+            zoom_percent: Browser zoom percentage (default: 100)
         
         Returns:
             dict: Information about captured images and metadata
@@ -187,6 +226,8 @@ class VisualTweetCapturer:
         
         print(f"📸 VISUAL TWEET CAPTURER")
         print(f"🔗 URL: {tweet_url}")
+        if zoom_percent != 100:
+            print(f"🔍 Browser zoom: {zoom_percent}%")
         
         # Step 1: Get API data for metadata
         print(f"\n1️⃣ Fetching API metadata...")
@@ -194,18 +235,29 @@ class VisualTweetCapturer:
         
         if not api_data:
             print("⚠️ Could not fetch API metadata, proceeding with visual capture only")
-            api_data = {'id': 'unknown', 'author': {'username': 'unknown'}, 'conversation_id': 'unknown'}
+            # Extract tweet ID and username from URL as fallback
+            tweet_id_from_url = self._extract_tweet_id(tweet_url)
+            username_from_url = self._extract_username_from_url(tweet_url)
+            
+            api_data = {
+                'id': tweet_id_from_url,
+                'author': {'username': username_from_url}, 
+                'conversation_id': tweet_id_from_url
+            }
+            
+            if username_from_url != 'unknown':
+                print(f"📝 Extracted username from URL: @{username_from_url}")
         
         # Step 1.5: Set up conversation-specific folder
         conversation_id = api_data.get('conversation_id', api_data['id'])
         main_tweet_id = api_data['id']
         tweet_type = self._detect_tweet_type(api_data)
-        account_name = self._get_account_name(api_data)
+        account_name = self._get_account_name(api_data, tweet_url)
         self.setup_conversation_folder(conversation_id, main_tweet_id, tweet_type, account_name)
         
-        # Step 2: Set up browser
+        # Step 2: Set up browser with specified zoom
         print(f"\n2️⃣ Setting up browser...")
-        if not self.setup_browser():
+        if not self.setup_browser(zoom_percent=zoom_percent):
             return None
         
         try:
