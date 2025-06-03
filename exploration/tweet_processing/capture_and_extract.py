@@ -4,8 +4,9 @@ Capture and Extract Tweet Processing Pipeline
 
 Step 1: Capture tweets from specified accounts using visual tweet capturer
 Step 2: Run text extraction on captured content using Gemini 2.0 Flash
+Step 3: Extract engagement metrics (replies, retweets, likes, bookmarks) from screenshots
 
-This script demonstrates the complete pipeline from tweet capture to text extraction.
+This script demonstrates the complete pipeline from tweet capture to text extraction with engagement analytics.
 """
 
 import sys
@@ -143,7 +144,12 @@ def step1_capture_tweets(accounts, days_back, max_tweets_per_account, zoom_perce
 
 def step2_extract_text():
     """
-    Step 2: Run text extraction on captured tweets in local folder.
+    Step 2: Run text extraction and engagement metrics extraction on captured tweets in local folder.
+    
+    Uses Gemini 2.0 Flash to extract:
+    - Complete tweet text content
+    - AI-generated summaries  
+    - Engagement metrics (replies, retweets, likes, bookmarks)
     """
     print(f"\n" + "=" * 70)
     print("🎯 STEP 2: EXTRACTING TEXT FROM CAPTURED TWEETS")
@@ -231,10 +237,19 @@ def step2_extract_text():
                         tweet_metadata = metadata.get('tweet_metadata', {})
                         full_text = tweet_metadata.get('full_text', '')
                         summary = tweet_metadata.get('summary', '')
+                        reply_count = tweet_metadata.get('reply_count', '')
+                        retweet_count = tweet_metadata.get('retweet_count', '')
+                        like_count = tweet_metadata.get('like_count', '')
+                        bookmark_count = tweet_metadata.get('bookmark_count', '')
+
                         
                         if full_text and summary:
                             print(f"   📝 Text: {full_text[:100]}{'...' if len(full_text) > 100 else ''}")
                             print(f"   📄 Summary: {summary}")
+                            print(f"   📄 Reply count: {reply_count}")
+                            print(f"   📄 Retweet count: {retweet_count}")
+                            print(f"   📄 Like count: {like_count}")
+                            print(f"   📄 Bookmark count: {bookmark_count}")
                 except Exception as e:
                     print(f"   ⚠️ Could not show extracted content: {e}")
             else:
@@ -257,6 +272,7 @@ def step2_extract_text():
         print(f"\n💾 Updated metadata files contain:")
         print(f"   • full_text: Complete extracted text from screenshots")
         print(f"   • summary: AI-generated 1-2 sentence summary")
+        print(f"   • engagement_metrics: Reply, retweet, like, and bookmark counts")
         print(f"   • extraction_timestamp: When extraction was performed")
         return True
     else:
@@ -281,9 +297,10 @@ def main(accounts, days_back, max_tweets, zoom_percent, api_method):
     print("📋 PIPELINE OVERVIEW:")
     print(f"   1. Capture tweets from {', '.join(['@' + acc for acc in accounts])} (last {days_back} days, max {max_tweets} each)")
     print("   2. Run text extraction on captured content using Gemini 2.0 Flash")
-    print("   3. Update metadata files with extracted text and summaries")
-    print(f"   4. Use {zoom_percent}% browser zoom for screenshots")
-    print(f"   5. Use {api_method.upper()} API for tweet fetching")
+    print("   3. Extract engagement metrics (replies, retweets, likes, bookmarks) from screenshots")
+    print("   4. Update metadata files with extracted text, summaries, and engagement data")
+    print(f"   5. Use {zoom_percent}% browser zoom for screenshots")
+    print(f"   6. Use {api_method.upper()} API for tweet fetching")
     
     # Ask user if they want to proceed
     proceed = input(f"\nProceed with pipeline? (y/n): ").strip().lower()
@@ -317,12 +334,13 @@ def main(accounts, days_back, max_tweets, zoom_percent, api_method):
     if capture_success and extraction_success:
         print(f"🎉 SUCCESS! Complete pipeline executed successfully")
         print(f"✅ Tweets captured and text extracted")
+        print(f"✅ Engagement metrics extracted from screenshots")
         print(f"✅ Metadata files updated with extracted content")
         print(f"\n📁 Check visual_captures/ folder for results")
         print(f"💡 Each tweet folder now contains:")
         print(f"   • Screenshots (*.png) at {zoom_percent}% zoom")
         print(f"   • Original metadata (capture_metadata.json)")
-        print(f"   • Enhanced metadata with extracted text")
+        print(f"   • Enhanced metadata with extracted text and engagement metrics")
     elif capture_success:
         print(f"⚠️ PARTIAL SUCCESS: Tweets captured but text extraction failed")
         print(f"💡 You can run text extraction separately later")
@@ -374,7 +392,7 @@ Note: Cropping coordinates are percentages (0-100) of image dimensions.
     parser.add_argument(
         '--accounts', 
         nargs='+', 
-        default=['elonmusk'],
+        default=['andrewyng'],
         help='Twitter account usernames to process (without @)'
     )
     
@@ -388,29 +406,30 @@ Note: Cropping coordinates are percentages (0-100) of image dimensions.
     parser.add_argument(
         '--max-tweets', 
         type=int, 
-        default=25,
+        default=10,
         help='Maximum number of tweets to capture per account'
     )
     
     parser.add_argument(
         '--zoom-percent',
         type=int,
-        default=50,
+        default=30,
         choices=range(25, 201),
         metavar="25-200",
-        help='Browser zoom percentage for screenshots (default: 50%%)'
+        help='Browser zoom percentage for screenshots (default: 40%%)'
     )
     
     parser.add_argument(
         '--crop-enabled',
-        action='store_true',
+        default=True,
+        # action='store_true',
         help='Enable image cropping to specified region'
     )
     
     parser.add_argument(
         '--crop-x1',
         type=int,
-        default=0,
+        default=31,
         choices=range(0, 100),
         metavar="0-99",
         help='Left boundary as percentage of image width (default: 0%%)'
@@ -428,7 +447,7 @@ Note: Cropping coordinates are percentages (0-100) of image dimensions.
     parser.add_argument(
         '--crop-x2',
         type=int,
-        default=100,
+        default=63,
         choices=range(1, 101),
         metavar="1-100",
         help='Right boundary as percentage of image width (default: 100%%)'
@@ -437,7 +456,7 @@ Note: Cropping coordinates are percentages (0-100) of image dimensions.
     parser.add_argument(
         '--crop-y2',
         type=int,
-        default=100,
+        default=98,
         choices=range(1, 101),
         metavar="1-100", 
         help='Bottom boundary as percentage of image height (default: 100%%)'
@@ -522,12 +541,13 @@ Note: Cropping coordinates are percentages (0-100) of image dimensions.
         if capture_success and extraction_success:
             print(f"🎉 SUCCESS! Complete pipeline executed successfully")
             print(f"✅ Tweets captured and text extracted")
+            print(f"✅ Engagement metrics extracted from screenshots")
             print(f"✅ Metadata files updated with extracted content")
             print(f"\n📁 Check visual_captures/ folder for results")
             print(f"💡 Each tweet folder now contains:")
             print(f"   • Screenshots (*.png) at {args.zoom_percent}% zoom")
             print(f"   • Original metadata (capture_metadata.json)")
-            print(f"   • Enhanced metadata with extracted text")
+            print(f"   • Enhanced metadata with extracted text and engagement metrics")
         elif capture_success:
             print(f"⚠️ PARTIAL SUCCESS: Tweets captured but text extraction failed")
             print(f"💡 You can run text extraction separately later")

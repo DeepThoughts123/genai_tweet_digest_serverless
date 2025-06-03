@@ -2,9 +2,10 @@
 """
 Tweet Text Extractor Service
 
-Uses Gemini 2.0 Flash multimodal capabilities to extract complete text content
-and generate summaries from tweet screenshots. Updates metadata.json files
-with extracted information.
+Uses Gemini 2.0 Flash multimodal capabilities to extract complete text content,
+generate summaries, and extract engagement metrics from tweet screenshots. 
+Updates metadata.json files with extracted information including reply counts,
+retweet counts, like counts, and bookmark counts.
 """
 
 import os
@@ -14,6 +15,7 @@ import base64
 import logging
 from typing import Dict, Any, List, Optional, Tuple
 from pathlib import Path
+from prompt_templates import TWEET_TEXT_EXTRACTION_PROMPT
 
 # Add lambdas to path for shared utilities
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'lambdas'))
@@ -27,8 +29,14 @@ logger = logging.getLogger(__name__)
 
 class TweetTextExtractor:
     """
-    Service for extracting complete text content and generating summaries 
+    Service for extracting complete text content, generating summaries, and extracting engagement metrics
     from tweet screenshots using Gemini 2.0 Flash multimodal API.
+    
+    Features:
+    - Complete text extraction from tweet screenshots
+    - AI-generated summaries
+    - Engagement metrics (replies, retweets, likes, bookmarks)
+    - Metadata enhancement and storage
     """
     
     def __init__(self, api_key: Optional[str] = None):
@@ -100,11 +108,11 @@ class TweetTextExtractor:
                 return True
             
             # Extract text and generate summary from screenshots
-            full_text, summary = self._extract_text_and_summary(screenshot_files)
+            full_text, summary, engagement_metrics = self._extract_text_and_summary(screenshot_files)
             
             if full_text and summary:
                 # Update metadata with extracted information
-                self._update_metadata_with_extraction(metadata, full_text, summary)
+                self._update_metadata_with_extraction(metadata, full_text, summary, engagement_metrics)
                 
                 # Save updated metadata
                 with open(metadata_file, 'w', encoding='utf-8') as f:
@@ -232,15 +240,15 @@ class TweetTextExtractor:
         
         return False
     
-    def _extract_text_and_summary(self, screenshot_files: List[Path]) -> Tuple[Optional[str], Optional[str]]:
+    def _extract_text_and_summary(self, screenshot_files: List[Path]) -> Tuple[Optional[str], Optional[str], Optional[Dict[str, str]]]:
         """
-        Extract complete text and generate summary from tweet screenshots using Gemini 2.0 Flash.
+        Extract complete text, generate summary, and extract engagement metrics from tweet screenshots using Gemini 2.0 Flash.
         
         Args:
             screenshot_files: List of screenshot file paths
             
         Returns:
-            Tuple of (full_text, summary) or (None, None) if extraction failed
+            Tuple of (full_text, summary, engagement_metrics) or (None, None, None) if extraction failed
         """
         try:
             # Convert screenshots to base64
@@ -260,7 +268,7 @@ class TweetTextExtractor:
             
             if not image_data:
                 logger.error("No screenshots could be loaded")
-                return None, None
+                return None, None, None
             
             # Build prompt for text extraction and summarization
             prompt = self._build_extraction_prompt()
@@ -277,14 +285,14 @@ class TweetTextExtractor:
             
             if not response or not response.text:
                 logger.error("Empty response from Gemini API")
-                return None, None
+                return None, None, None
             
             # Parse the response
             return self._parse_extraction_response(response.text)
             
         except Exception as e:
             logger.error(f"Error extracting text and summary: {e}")
-            return None, None
+            return None, None, None
     
     def _build_extraction_prompt(self) -> str:
         """
@@ -293,38 +301,17 @@ class TweetTextExtractor:
         Returns:
             Formatted prompt string for multimodal Gemini API
         """
-        return """
-Please analyze the provided tweet screenshot(s) and extract the following information:
-
-1. COMPLETE TEXT EXTRACTION:
-   - Extract ALL text content from the tweet, including the main tweet text, any quoted text, and all visible text elements
-   - Include usernames, timestamps, and engagement metrics if visible
-   - Preserve the exact wording and formatting as much as possible
-   - If there are multiple screenshots, combine the text content logically
-
-2. SUMMARY GENERATION:
-   - Create a concise 1-2 sentence summary that captures the key information and main point of the tweet
-   - Focus on the core message, findings, announcements, or insights
-   - Keep it informative but brief, suitable for a digest format
-
-Please respond in the following JSON format:
-{
-  "full_text": "Complete extracted text from the tweet...",
-  "summary": "Concise 1-2 sentence summary of the tweet content..."
-}
-
-Ensure the JSON is valid and properly formatted. If you cannot extract text or generate a summary, use null values.
-        """.strip()
+        return TWEET_TEXT_EXTRACTION_PROMPT.strip()
     
-    def _parse_extraction_response(self, response_text: str) -> Tuple[Optional[str], Optional[str]]:
+    def _parse_extraction_response(self, response_text: str) -> Tuple[Optional[str], Optional[str], Optional[Dict[str, str]]]:
         """
-        Parse the Gemini API response to extract full_text and summary.
+        Parse the Gemini API response to extract full_text, summary, and engagement metrics.
         
         Args:
             response_text: Raw response text from Gemini API
             
         Returns:
-            Tuple of (full_text, summary) or (None, None) if parsing failed
+            Tuple of (full_text, summary, engagement_metrics) or (None, None, None) if parsing failed
         """
         try:
             # Try to extract JSON from the response
@@ -344,33 +331,42 @@ Ensure the JSON is valid and properly formatted. If you cannot extract text or g
             full_text = parsed.get('full_text')
             summary = parsed.get('summary')
             
+            # Extract engagement metrics
+            engagement_metrics = {
+                'reply_count': parsed.get('reply_count'),
+                'retweet_count': parsed.get('retweet_count'),
+                'like_count': parsed.get('like_count'),
+                'bookmark_count': parsed.get('bookmark_count')
+            }
+            
             # Validate extracted data
             if not full_text or not summary:
                 logger.warning("Missing full_text or summary in API response")
-                return None, None
+                return None, None, None
             
             if full_text == "null" or summary == "null":
                 logger.warning("API returned null values for extraction")
-                return None, None
+                return None, None, None
             
-            return full_text.strip(), summary.strip()
+            return full_text.strip(), summary.strip(), engagement_metrics
             
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON response: {e}")
             logger.debug(f"Raw response: {response_text[:500]}...")
-            return None, None
+            return None, None, None
         except Exception as e:
             logger.error(f"Error parsing extraction response: {e}")
-            return None, None
+            return None, None, None
     
-    def _update_metadata_with_extraction(self, metadata: Dict[str, Any], full_text: str, summary: str) -> None:
+    def _update_metadata_with_extraction(self, metadata: Dict[str, Any], full_text: str, summary: str, engagement_metrics: Optional[Dict[str, str]] = None) -> None:
         """
-        Update metadata dictionary with extracted text and summary.
+        Update metadata dictionary with extracted text, summary, and engagement metrics.
         
         Args:
             metadata: Metadata dictionary to update
             full_text: Extracted complete text
             summary: Generated summary
+            engagement_metrics: Dictionary containing engagement metrics (replies, retweets, likes, bookmarks)
         """
         # Ensure tweet_metadata exists
         if 'tweet_metadata' not in metadata:
@@ -381,8 +377,14 @@ Ensure the JSON is valid and properly formatted. If you cannot extract text or g
         metadata['tweet_metadata']['full_text'] = full_text
         metadata['tweet_metadata']['summary'] = summary
         
+        # Add engagement metrics if available
+        if engagement_metrics:
+            for metric_name, metric_value in engagement_metrics.items():
+                if metric_value is not None:
+                    metadata['tweet_metadata'][metric_name] = metric_value
+        
         # Add extraction timestamp for tracking
         from datetime import datetime
         metadata['tweet_metadata']['extraction_timestamp'] = datetime.now().isoformat()
         
-        logger.debug("Updated metadata with extracted text and summary") 
+        logger.debug("Updated metadata with extracted text, summary, and engagement metrics") 

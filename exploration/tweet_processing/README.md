@@ -2,9 +2,9 @@
 
 A comprehensive development and testing environment for advanced tweet capture and multimodal text extraction using Gemini 2.0 Flash.
 
-> **Features**: Dual API methods (Timeline/Search), Professional CLI, Rate limit resilience, 96% success rate  
+> **Features**: Dual API methods (Timeline/Search), Professional CLI, Rate limit resilience, 96% success rate, **Engagement metrics extraction**  
 > **Status**: ✅ Production-ready with comprehensive testing  
-> **Last Updated**: June 2025
+> **Last Updated**: December 2024
 
 ## Overview
 
@@ -15,7 +15,8 @@ Complete end-to-end pipeline for capturing Twitter content and extracting detail
 - 🎯 **Dual API Support**: Choose between Timeline API (detailed analysis) or Search API (bulk processing)
 - 📸 **Visual Capture**: High-quality screenshots with configurable zoom (25-200%)
 - 🤖 **AI Text Extraction**: Gemini 2.0 Flash for complete text extraction and summarization
-- 📊 **Professional CLI**: Argparse-based interface with comprehensive help and examples
+- 📊 **Engagement Metrics**: Automatic extraction of replies, retweets, likes, and bookmarks from screenshots
+- 📋 **Professional CLI**: Argparse-based interface with comprehensive help and examples
 - 🛡️ **Rate Limit Resilience**: Intelligent fallback when API limits are hit
 - 📁 **Smart Organization**: Account-based folder structure with proper metadata
 
@@ -87,11 +88,61 @@ python capture_and_extract.py --accounts andrewyng --no-confirm --api-method sea
 python capture_and_extract.py --accounts openai --days-back 14 --max-tweets 50
 ```
 
+## Engagement Metrics Extraction
+
+The pipeline automatically extracts engagement metrics (replies, retweets, likes, bookmarks) from tweet screenshots using Gemini 2.0 Flash vision capabilities.
+
+### Features
+
+- **Automatic Detection**: AI analyzes screenshots to identify engagement numbers
+- **Format Handling**: Supports Twitter's abbreviated formats (1.2K, 8.5K, etc.)
+- **Fallback Graceful**: Uses `null` values when metrics aren't visible in screenshots
+- **Real-time Display**: Shows extracted metrics during processing
+
+### Example Output
+
+```bash
+📝 Processing: tweet_1234567890
+✅ Successfully extracted text and summary
+   📝 Text: Just shipped a major update to our AI system...
+   📄 Summary: Announces major AI system update with improved performance
+   📄 Reply count: 42
+   📄 Retweet count: 1.2K
+   📄 Like count: 8.5K
+   📄 Bookmark count: 156
+```
+
+### Metadata Structure
+
+Engagement metrics are saved in the `tweet_metadata` section:
+
+```json
+{
+  "tweet_metadata": {
+    "full_text": "Tweet content...",
+    "summary": "Brief summary...",
+    "reply_count": "42",        # Number of replies
+    "retweet_count": "1.2K",    # Number of retweets  
+    "like_count": "8.5K",       # Number of likes
+    "bookmark_count": "156",    # Number of bookmarks/saves
+    "extraction_timestamp": "2024-12-01T21:40:50.665306"
+  }
+}
+```
+
+### Notes
+
+- Values are extracted as strings to preserve Twitter's formatting (e.g., "1.2K")
+- Metrics are `null` if not visible in screenshots
+- Extraction accuracy depends on screenshot quality and zoom level
+- Higher zoom levels (100%+) generally improve metric visibility
+
 ## Success Metrics
 
 **Tested Performance** (elonmusk account, 25 tweets):
 - ✅ Visual Capture: 96% success rate
 - ✅ Text Extraction: 95% success rate  
+- ✅ Engagement Metrics: Extraction capability added (requires validation testing)
 - ✅ End-to-End: 91% complete success
 - ⏱️ Processing Speed: ~5-8 seconds per tweet
 
@@ -113,6 +164,10 @@ Enhanced metadata includes:
   "tweet_metadata": {
     "full_text": "Complete extracted text from screenshots...",
     "summary": "AI-generated 1-2 sentence summary",
+    "reply_count": "42",
+    "retweet_count": "1.2K", 
+    "like_count": "8.5K",
+    "bookmark_count": "156",
     "extraction_timestamp": "2025-06-01T21:40:50.665306"
   }
 }
@@ -188,7 +243,7 @@ python capture_and_extract.py --accounts elonmusk --max-tweets 1 --zoom-percent 
 ## Components
 
 - **`capture_and_extract.py`**: Main pipeline with dual API support
-- **`tweet_text_extractor.py`**: Multimodal AI text extraction using Gemini 2.0 Flash
+- **`tweet_text_extractor.py`**: Multimodal AI text extraction and engagement metrics using Gemini 2.0 Flash
 - **`test_text_extraction.py`**: Comprehensive testing framework
 - **`reorganize_captures.py`**: Utility for organizing captures by account
 
