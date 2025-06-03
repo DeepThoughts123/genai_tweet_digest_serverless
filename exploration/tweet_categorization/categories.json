@@ -1,0 +1,50 @@
+{
+  "categories": [
+    {
+      "name": "Research & Papers",
+      "description": "Academic research, paper releases, scientific findings, and theoretical developments in AI/ML"
+    },
+    {
+      "name": "Product Announcements", 
+      "description": "New AI product launches, feature updates, and company announcements from AI companies"
+    },
+    {
+      "name": "Tutorials & Education",
+      "description": "Educational content, how-to guides, learning resources, and beginner-friendly explanations"
+    },
+    {
+      "name": "Industry News",
+      "description": "AI industry updates, market trends, business developments, and sector analysis"
+    },
+    {
+      "name": "Technical Insights",
+      "description": "Technical deep-dives, architecture discussions, performance analysis, and implementation details"
+    },
+    {
+      "name": "Tools & Resources",
+      "description": "AI tools, frameworks, libraries, datasets, and useful resources for practitioners"
+    },
+    {
+      "name": "Career & Jobs",
+      "description": "AI job opportunities, career advice, hiring trends, and professional development"
+    },
+    {
+      "name": "Events & Conferences",
+      "description": "AI conferences, workshops, meetups, webinars, and industry events"
+    },
+    {
+      "name": "Opinion & Commentary",
+      "description": "Personal opinions, industry commentary, predictions, and thought leadership pieces"
+    },
+    {
+      "name": "Startup News",
+      "description": "AI startup announcements, funding news, acquisitions, and entrepreneurship content"
+    }
+  ],
+  "metadata": {
+    "created_date": "2024-12-01",
+    "last_updated": "2024-12-01",
+    "version": "1.0",
+    "total_categories": 10
+  }
+} 
