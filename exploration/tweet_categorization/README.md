@@ -39,8 +39,11 @@ The system starts with 10 comprehensive GenAI categories designed to appeal to b
 ### Basic Usage
 
 ```bash
-# Categorize tweets for a specific account
+# Categorize tweets for a specific account (original method)
 python categorize_tweets.py --account andrewyng
+
+# Direct categorization from capture_metadata.json files (new method)
+python categorize_direct.py ./visual_captures
 
 # List available accounts that can be categorized
 python categorize_tweets.py --list-accounts
@@ -48,6 +51,25 @@ python categorize_tweets.py --list-accounts
 # Test the categorization system
 python test_categorization.py
 ```
+
+### Direct Categorization (Recommended)
+
+The new `categorize_direct.py` script provides a streamlined approach for categorizing tweets directly from `capture_metadata.json` files:
+
+```bash
+# Process all capture_metadata.json files in a directory tree
+python categorize_direct.py /path/to/base/folder
+
+# Use custom categories file
+python categorize_direct.py ./visual_captures --categories custom_categories.json
+```
+
+**Features:**
+- 🔍 **Recursive scanning**: Finds all `capture_metadata.json` files in subdirectories
+- 📝 **Direct text processing**: Uses `tweet_metadata.full_text` or falls back to `api_metadata.text`
+- 🏷️ **L1_ prefixed fields**: Future-ready for hierarchical categorization (L2, L3, etc.)
+- ⚡ **Simple workflow**: No need to specify account names or folder structures
+- 🔄 **Idempotent**: Safely skips already categorized files
 
 ### Requirements
 
@@ -90,18 +112,19 @@ python test_categorization.py --test-type category-mgmt # Test category creation
 
 ### Enhanced Metadata
 
-After categorization, tweet metadata files are enriched with:
+After categorization, tweet metadata files are enriched with L1_ prefixed fields for hierarchical categorization support:
 
 ```json
 {
   "tweet_metadata": {
     "full_text": "Original tweet text...",
     "summary": "AI-generated summary...",
-    "L1_category": "Research & Papers",
-    "categorization_confidence": "high",
-    "categorization_reasoning": "The tweet discusses a new research paper on transformer efficiency, which clearly fits the Research & Papers category.",
-    "categorization_timestamp": "2024-12-01T21:40:50.665306"
-  }
+    "extraction_timestamp": "2025-06-02T20:54:28.970150"
+  },
+  "L1_category": "Research & Papers",
+  "L1_categorization_confidence": "high",
+  "L1_categorization_reasoning": "The tweet discusses a new research paper on transformer efficiency, which clearly fits the Research & Papers category.",
+  "L1_categorization_timestamp": "2024-12-01T21:40:50.665306"
 }
 ```
 
@@ -236,10 +259,11 @@ GEMINI_MODEL=gemini-2.0-flash
 ```
 tweet_categorization/
 ├── README.md                    ← This file
-├── categories.json              ← Category definitions
+├── categories.json              ← Category definitions (now with 11 categories)
 ├── prompt_templates.py          ← Categorization prompts
 ├── tweet_categorizer.py         ← Core categorization logic
-├── categorize_tweets.py         ← Main pipeline script
+├── categorize_tweets.py         ← Account-based pipeline script
+├── categorize_direct.py         ← Direct metadata file processing (recommended)
 └── test_categorization.py       ← Testing framework
 ```
 
@@ -316,6 +340,22 @@ python test_categorization.py --test-type andrewyng
 - [Tweet Processing Pipeline](../tweet_processing/README.md) - Text extraction prerequisite
 - [Visual Tweet Capture](../visual_tweet_capture/README.md) - Tweet capture system
 - [Main Exploration README](../README.md) - Overview of all exploration features
+
+## Script Comparison
+
+### `categorize_direct.py` (Recommended)
+- **Input**: Base path containing `capture_metadata.json` files
+- **Text source**: `tweet_metadata.full_text` or `api_metadata.text`
+- **Output**: L1_ prefixed categorization fields in same metadata files
+- **Use case**: Simple, direct processing of captured tweets
+- **Advantages**: Simpler workflow, future-ready field naming, recursive scanning
+
+### `categorize_tweets.py` (Legacy)
+- **Input**: Account names and folder structures
+- **Text source**: `tweet_metadata.summary` field
+- **Output**: Categorization fields in tweet metadata
+- **Use case**: Account-specific processing with existing pipeline integration
+- **Advantages**: Integration with existing tweet processing pipeline
 
 ---
 

@@ -88,13 +88,21 @@ genai_tweets_digest_serverless/
 │   └── serverless-migration-plan.md # Initial serverless migration plan
 ├── exploration/              # Research and development
 │   ├── visual_tweet_capture/ # Visual tweet capture development & testing with intelligent retry mechanism
-│   └── tweet_processing/     # Advanced tweet processing pipeline
-│       ├── capture_and_extract.py # Complete tweet capture and text extraction pipeline with argparse
-│       ├── tweet_text_extractor.py # Gemini 2.0 Flash multimodal text extraction from screenshots
-│       ├── test_text_extraction.py # Comprehensive testing for text extraction features
-│       ├── reorganize_captures.py # Utility to reorganize tweet captures by account
-│       ├── README.md         # Tweet processing pipeline documentation
-│       └── visual_captures/  # Local tweet capture storage with account-based organization
+│   ├── tweet_processing/     # Advanced tweet processing pipeline
+│   │   ├── capture_and_extract.py # Complete tweet capture and text extraction pipeline with argparse
+│   │   ├── tweet_text_extractor.py # Gemini 2.0 Flash multimodal text extraction from screenshots
+│   │   ├── test_text_extraction.py # Comprehensive testing for text extraction features
+│   │   ├── reorganize_captures.py # Utility to reorganize tweet captures by account
+│   │   ├── README.md         # Tweet processing pipeline documentation
+│   │   └── visual_captures/  # Local tweet capture storage with account-based organization
+│   └── tweet_categorization/ # AI-powered tweet categorization system
+│       ├── categories.json   # Dynamic category definitions (11 GenAI-focused categories)
+│       ├── prompt_templates.py # Categorization prompts for Gemini 2.0 Flash
+│       ├── tweet_categorizer.py # Core categorization logic with dynamic category management
+│       ├── categorize_tweets.py # Account-based categorization pipeline (legacy)
+│       ├── categorize_direct.py # Direct metadata file processing (recommended)
+│       ├── test_categorization.py # Comprehensive testing framework
+│       └── README.md         # Tweet categorization system documentation
 ├── frontend/                 # Original Next.js development source
 │   ├── src/                  # React/Next.js source code
 │   ├── package.json          # Node.js dependencies
@@ -273,7 +281,61 @@ genai_tweets_digest_serverless/
 
 **Cross-references**: See [Tweet Processing Pipeline](tweet_processing_pipeline.md) for complete documentation
 
-### 4. Static Frontend (`frontend-static/`)
+### 4. Tweet Categorization System
+
+**Location**: `exploration/tweet_categorization/`  
+**Purpose**: AI-powered categorization of tweets using Gemini 2.0 Flash with dynamic category management  
+**Status**: ✅ Production-ready with hierarchical categorization support
+
+#### Components
+
+- **`categorize_direct.py`**: Recommended script for direct metadata file processing
+- **`categorize_tweets.py`**: Legacy account-based categorization pipeline  
+- **`tweet_categorizer.py`**: Core categorization engine with dynamic category creation
+- **`categories.json`**: Dynamic category definitions (11 GenAI-focused categories)
+- **`prompt_templates.py`**: Categorization prompts for Gemini 2.0 Flash
+- **`test_categorization.py`**: Comprehensive testing framework
+
+#### Key Features
+
+- **AI-Powered Classification**: Uses Gemini 2.0 Flash for intelligent content categorization
+- **Dynamic Category Management**: Automatically creates new categories when existing ones don't fit
+- **Hierarchical Support**: L1_ prefixed fields support future L2, L3 categorization levels
+- **Direct Processing**: Recursive scanning of `capture_metadata.json` files
+- **Idempotent Operations**: Safely skips already categorized content
+
+#### GenAI-Optimized Categories (11 total)
+
+1. Research & Papers - Academic research, scientific findings
+2. Product Announcements - AI product launches, feature updates  
+3. Tutorials & Education - Learning resources, guides
+4. Industry News - Market trends, business developments
+5. Technical Insights - Architecture, implementation details
+6. Tools & Resources - Frameworks, libraries, datasets
+7. Career & Jobs - Opportunities, career advice
+8. Events & Conferences - AI conferences, workshops
+9. Opinion & Commentary - Thought leadership, predictions
+10. Startup News - Funding, acquisitions, entrepreneurship
+11. Non-Generative AI - Non-generative AI discussions and updates
+
+#### Output Structure
+
+Categorization adds L1_ prefixed fields to metadata files:
+- `L1_category`: Assigned category name
+- `L1_categorization_confidence`: AI confidence level
+- `L1_categorization_reasoning`: AI explanation  
+- `L1_categorization_timestamp`: Processing timestamp
+
+#### Integration Points
+
+- **Text Sources**: `tweet_metadata.full_text` or `api_metadata.text`
+- **AI Processing**: Gemini 2.0 Flash multimodal capabilities
+- **Category Storage**: Dynamic `categories.json` file updates
+- **Metadata Enhancement**: Direct updates to `capture_metadata.json` files
+
+**Cross-references**: See [Tweet Categorization README](../exploration/tweet_categorization/README.md) for complete documentation
+
+### 5. Static Frontend (`frontend-static/`)
 -   **Technology**: Next.js static export with React components
 -   **Hosting**: Amazon S3 with CloudFront CDN distribution
 -   **Features**:
@@ -283,7 +345,7 @@ genai_tweets_digest_serverless/
     -   Error handling for all subscription scenarios
     -   Mobile-optimized responsive design
 
-### 5. Data Storage and Configuration
+### 6. Data Storage and Configuration
 
 #### **DynamoDB Tables**
 -   **Subscribers Table**: Stores subscriber information with verification status
@@ -297,7 +359,7 @@ genai_tweets_digest_serverless/
 -   **Configuration files**: `accounts.json` with Twitter accounts to monitor
 -   **Static website hosting**: Frontend files with CloudFront distribution
 
-### 6. Infrastructure as Code (`infrastructure-aws/`)
+### 7. Infrastructure as Code (`infrastructure-aws/`)
 -   **`cloudformation-template.yaml`**: Complete infrastructure template with all AWS resources
 -   **`cloudformation-template-minimal.yaml`**: Minimal setup for development/testing
 -   **Resources Defined**:
@@ -309,7 +371,7 @@ genai_tweets_digest_serverless/
     -   EventBridge rules for automated scheduling
     -   SES configuration for email delivery
 
-### 7. Testing Infrastructure (`lambdas/tests/`)
+### 8. Testing Infrastructure (`lambdas/tests/`)
 -   **Unit Tests**: 68 comprehensive tests covering all Lambda functions and services (expanded from 28 tests)
 -   **Critical Bug Fixes**: Fixed missing `fetch_tweets()` method that was causing weekly digest failures
 -   **Test Coverage**:
@@ -328,7 +390,7 @@ genai_tweets_digest_serverless/
 -   **Integration Tests**: End-to-end testing with AWS services
 -   **Performance**: 68 backend tests execute in ~12 seconds with 100% pass rate
 
-### 8. Scripts and Automation (`scripts/`)
+### 9. Scripts and Automation (`scripts/`)
 -   **`deploy.sh`**: Main deployment script with Lambda packaging and CloudFormation deployment
 -   **`deploy-frontend.sh`**: Frontend-specific deployment automation
 -   **`setup-frontend.sh`**: Frontend build and preparation script
