@@ -20,6 +20,8 @@ The Tweet Processing Pipeline provides a complete end-to-end solution for captur
 - 🔧 **Professional CLI**: Comprehensive command-line interface with validation
 - 💾 **Comprehensive Metadata**: Complete capture and extraction information
 - 🛡️ **Rate Limit Resilience**: Intelligent fallback and error handling
+- 🛡️ **Browser Retry Mechanism**: Intelligent error categorization with exponential backoff retries
+- 🔄 **Automatic Recovery**: Browser failure recovery and fallback configurations
 - 🚀 **Production Ready**: Error handling, logging, and S3 integration
 
 ### 🎨 Image Cropping
@@ -195,6 +197,13 @@ visual_captures/
 - **Visual Capture**: ~96% success rate (validated on elonmusk account)
 - **Text Extraction**: ~95% success rate with Gemini 2.0 Flash
 - **End-to-End**: ~91% complete pipeline success
+
+### Browser Reliability Features
+- **Intelligent Retry Mechanism**: Up to 5 configurable browser setup attempts with exponential backoff
+- **Error Categorization**: Automatic detection of transient vs permanent errors (no retry for permanent issues)
+- **Fallback Configurations**: Non-headless mode and minimal Chrome options when primary setup fails
+- **Page Loading Retries**: Progressive timeouts and network error handling for dynamic content
+- **Automatic Cleanup**: Proper cleanup of failed browser instances to prevent resource leaks
 
 ### Rate Limit Management
 - **Timeline API**: Automatic rate limit detection with intelligent fallback
