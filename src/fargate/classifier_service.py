@@ -54,4 +54,27 @@ class ClassifierService:  # noqa: D101
         if results:
             self._store.put_batch(results)
             logging.info("Processed %d tweets", len(results))
-        return len(results) 
+        return len(results)
+
+    # ------------------------------------------------------------------
+    # Factory helpers
+    # ------------------------------------------------------------------
+    @classmethod
+    def from_env(cls):  # noqa: D401
+        """Build a service instance based on environment variables.
+
+        Falls back to in-memory stubs when required env vars are absent so the
+        service can still run locally without AWS credentials.
+        """
+        from shared import env
+        from shared.store import DynamoDBStore  # local import to avoid heavy deps in tests
+
+        queue_url = env.get("QUEUE_URL")
+        ddb_table = env.get("DDB_TABLE")
+
+        queue = SQSQueue(queue_url) if queue_url else InMemoryQueue()
+        store = DynamoDBStore(ddb_table) if ddb_table else InMemoryStore()
+
+        llm_client = LLMClient(api_key=env.get("OPENAI_API_KEY") or None)
+        classifier = HierarchicalClassifier(llm_client)
+        return cls(queue, store, classifier) 
