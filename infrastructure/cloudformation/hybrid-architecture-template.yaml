@@ -1,0 +1,562 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Hybrid Lambda + EC2 Architecture for GenAI Tweet Digest with Visual Processing'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'genai-tweet-digest'
+    Description: 'Name of the project for resource naming'
+  
+  Environment:
+    Type: String
+    Default: 'production'
+    AllowedValues: ['development', 'staging', 'production']
+    Description: 'Deployment environment'
+    
+  ProcessingMode:
+    Type: String
+    Default: 'hybrid'
+    AllowedValues: ['lambda-only', 'ec2-only', 'hybrid']
+    Description: 'Processing mode for the system'
+    
+  EnableVisualCapture:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: 'Enable visual tweet capture processing'
+    
+  EC2InstanceType:
+    Type: String
+    Default: 't3.medium'
+    AllowedValues: ['t3.small', 't3.medium', 't3.large', 't3.xlarge', 'm5.large', 'm5.xlarge']
+    Description: 'EC2 instance type for visual processing'
+    
+  MaxProcessingTime:
+    Type: Number
+    Default: 7200
+    MinValue: 1800
+    MaxValue: 14400
+    Description: 'Maximum processing time in seconds (30 minutes to 4 hours)'
+    
+  NotificationEmail:
+    Type: String
+    Description: 'Email address for processing notifications'
+    Default: ''
+
+Conditions:
+  HasNotificationEmail: !Not [!Equals [!Ref NotificationEmail, '']]
+  IsProduction: !Equals [!Ref Environment, 'production']
+
+Resources:
+  
+  # ===== EXISTING SERVERLESS RESOURCES (from original template) =====
+  
+  # S3 Bucket for data storage
+  TweetDigestBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-${Environment}-data'
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: VisualProcessingCleanup
+            Status: Enabled
+            ExpirationInDays: 90
+            Prefix: 'visual-processing/'
+          - Id: TweetDataRetention
+            Status: Enabled
+            ExpirationInDays: 365
+            Prefix: 'tweets/'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: 's3:ObjectCreated:*'
+            Function: !GetAtt ProcessingCompleteHandler.Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: 'visual-processing/status/'
+                  - Name: suffix
+                    Value: 'processing_complete.json'
+
+  # DynamoDB table for subscribers
+  SubscribersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ProjectName}-${Environment}-subscribers'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: subscriber_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: subscriber_id
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  # ===== NEW HYBRID ARCHITECTURE RESOURCES =====
+  
+  # SNS Topic for processing notifications
+  ProcessingNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-${Environment}-processing-notifications'
+      DisplayName: 'GenAI Tweet Digest Processing Notifications'
+
+  ProcessingNotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasNotificationEmail
+    Properties:
+      Protocol: email
+      TopicArn: !Ref ProcessingNotificationTopic
+      Endpoint: !Ref NotificationEmail
+
+  # IAM Role for EC2 instances
+  EC2ProcessingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-ec2-processing-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Policies:
+        - PolicyName: VisualProcessingPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub '${TweetDigestBucket}/*'
+                  - !GetAtt TweetDigestBucket.Arn
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref ProcessingNotificationTopic
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ProjectName}/*'
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref EC2ProcessingRole
+
+  # Security Group for EC2 instances
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for visual processing EC2 instances
+      VpcId: !Ref ProcessingVPC
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP outbound
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS outbound
+
+  # VPC for EC2 processing (optional, can use default VPC)
+  ProcessingVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-processing-vpc'
+
+  ProcessingSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref ProcessingVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-processing-subnet'
+
+  ProcessingInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-processing-igw'
+
+  ProcessingGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref ProcessingVPC
+      InternetGatewayId: !Ref ProcessingInternetGateway
+
+  ProcessingRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ProcessingVPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-processing-rt'
+
+  ProcessingRoute:
+    Type: AWS::EC2::Route
+    DependsOn: ProcessingGatewayAttachment
+    Properties:
+      RouteTableId: !Ref ProcessingRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref ProcessingInternetGateway
+
+  ProcessingSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref ProcessingSubnet
+      RouteTableId: !Ref ProcessingRouteTable
+
+  # Launch Template for EC2 instances
+  EC2LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub '${ProjectName}-${Environment}-visual-processing'
+      LaunchTemplateData:
+        ImageId: ami-0c02fb55956c7d316  # Amazon Linux 2023 (update for your region)
+        InstanceType: !Ref EC2InstanceType
+        IamInstanceProfile:
+          Arn: !GetAtt EC2InstanceProfile.Arn
+        SecurityGroupIds:
+          - !Ref EC2SecurityGroup
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: !Sub '${ProjectName}-${Environment}-visual-processing'
+              - Key: Purpose
+                Value: visual-tweet-processing
+              - Key: Environment
+                Value: !Ref Environment
+              - Key: Project
+                Value: !Ref ProjectName
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            yum update -y
+            yum install -y python3 python3-pip git docker
+            
+            # Install Chrome
+            wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | rpm --import -
+            echo "[google-chrome]" > /etc/yum.repos.d/google-chrome.repo
+            echo "name=google-chrome" >> /etc/yum.repos.d/google-chrome.repo
+            echo "baseurl=http://dl.google.com/linux/chrome/rpm/stable/x86_64" >> /etc/yum.repos.d/google-chrome.repo
+            echo "enabled=1" >> /etc/yum.repos.d/google-chrome.repo
+            echo "gpgcheck=1" >> /etc/yum.repos.d/google-chrome.repo
+            echo "gpgkey=https://dl.google.com/linux/linux_signing_key.pub" >> /etc/yum.repos.d/google-chrome.repo
+            yum install -y google-chrome-stable
+            
+            # Set up processing environment
+            mkdir -p /opt/visual-processing
+            cd /opt/visual-processing
+            
+            # Download processing code (placeholder - update with actual source)
+            # This should download your ec2-processing code and shared libraries
+            aws s3 cp s3://${TweetDigestBucket}/code/ec2-processing.tar.gz . || echo "Code package not found, using defaults"
+            
+            # Set environment variables
+            echo "S3_BUCKET=${TweetDigestBucket}" >> /etc/environment
+            echo "SNS_TOPIC_ARN=${ProcessingNotificationTopic}" >> /etc/environment
+            echo "AWS_DEFAULT_REGION=${AWS::Region}" >> /etc/environment
+            
+            # Install Python dependencies
+            pip3 install boto3 selenium webdriver-manager pillow requests
+            
+            # Install CloudWatch agent
+            wget https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+            rpm -U ./amazon-cloudwatch-agent.rpm
+
+  # Auto Scaling Group for EC2 instances
+  EC2AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Sub '${ProjectName}-${Environment}-visual-processing'
+      LaunchTemplate:
+        LaunchTemplateId: !Ref EC2LaunchTemplate
+        Version: !GetAtt EC2LaunchTemplate.LatestVersionNumber
+      MinSize: 0
+      MaxSize: 1
+      DesiredCapacity: 0
+      VPCZoneIdentifier:
+        - !Ref ProcessingSubnet
+      HealthCheckType: EC2
+      HealthCheckGracePeriod: 300
+      DefaultCooldown: 300
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-visual-processing-asg'
+          PropagateAtLaunch: false
+
+  # ===== LAMBDA FUNCTIONS =====
+
+  # Lambda execution role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-lambda-execution-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: LambdaHybridProcessingPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub '${TweetDigestBucket}/*'
+                  - !GetAtt TweetDigestBucket.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:UpdateItem
+                Resource: !GetAtt SubscribersTable.Arn
+              - Effect: Allow
+                Action:
+                  - autoscaling:SetDesiredCapacity
+                  - autoscaling:DescribeAutoScalingGroups
+                  - ec2:DescribeInstances
+                  - ec2:DescribeInstanceStatus
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-*'
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref ProcessingNotificationTopic
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Resource: '*'
+
+  # Visual Processing Dispatcher Lambda
+  VisualProcessingDispatcher:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-${Environment}-visual-dispatcher'
+      Runtime: python3.11
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 300
+      MemorySize: 256
+      Environment:
+        Variables:
+          EC2_AUTOSCALING_GROUP_NAME: !Ref EC2AutoScalingGroup
+          EC2_INSTANCE_TYPE: !Ref EC2InstanceType
+          MAX_PROCESSING_TIME: !Ref MaxProcessingTime
+          S3_BUCKET_NAME: !Ref TweetDigestBucket
+          SNS_TOPIC_ARN: !Ref ProcessingNotificationTopic
+          ENVIRONMENT: !Ref Environment
+      Code:
+        ZipFile: |
+          import json
+          def lambda_handler(event, context):
+              return {'statusCode': 200, 'body': json.dumps('Placeholder - deploy actual code')}
+
+  # Processing Complete Handler Lambda  
+  ProcessingCompleteHandler:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-${Environment}-processing-complete'
+      Runtime: python3.11
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 300
+      MemorySize: 256
+      Environment:
+        Variables:
+          SUBSCRIBERS_TABLE: !Ref SubscribersTable
+          S3_BUCKET_NAME: !Ref TweetDigestBucket
+          SNS_TOPIC_ARN: !Ref ProcessingNotificationTopic
+      Code:
+        ZipFile: |
+          import json
+          def lambda_handler(event, context):
+              return {'statusCode': 200, 'body': json.dumps('Placeholder - deploy actual code')}
+
+  # S3 trigger permission for Processing Complete Handler
+  ProcessingCompleteHandlerS3Permission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ProcessingCompleteHandler
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !GetAtt TweetDigestBucket.Arn
+
+  # Modified Weekly Digest Lambda (now with orchestrator)
+  WeeklyDigestLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-${Environment}-weekly-digest'
+      Runtime: python3.11
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 900  # 15 minutes max
+      MemorySize: 512
+      Environment:
+        Variables:
+          SUBSCRIBERS_TABLE: !Ref SubscribersTable
+          S3_BUCKET_NAME: !Ref TweetDigestBucket
+          PROCESSING_MODE: !Ref ProcessingMode
+          ENABLE_VISUAL_CAPTURE: !Ref EnableVisualCapture
+          VISUAL_ACCOUNTS_LIMIT: 10
+          VISUAL_DISPATCHER_FUNCTION_NAME: !Ref VisualProcessingDispatcher
+          TWITTER_BEARER_TOKEN: !Sub '{{resolve:ssm:/${ProjectName}/twitter/bearer-token}}'
+          GEMINI_API_KEY: !Sub '{{resolve:ssm:/${ProjectName}/gemini/api-key}}'
+      Code:
+        ZipFile: |
+          import json
+          def lambda_handler(event, context):
+              return {'statusCode': 200, 'body': json.dumps('Placeholder - deploy actual code')}
+
+  # EventBridge rule for weekly digest
+  WeeklyDigestSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-weekly-digest'
+      Description: 'Trigger weekly digest generation'
+      ScheduleExpression: !If
+        - IsProduction
+        - 'cron(0 9 ? * MON *)'  # Monday 9 AM UTC for production
+        - 'cron(0/30 * * * ? *)'  # Every 30 minutes for testing
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt WeeklyDigestLambda.Arn
+          Id: WeeklyDigestTarget
+
+  WeeklyDigestSchedulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref WeeklyDigestLambda
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt WeeklyDigestSchedule.Arn
+
+  # CloudWatch Log Groups
+  VisualProcessingDispatcherLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${VisualProcessingDispatcher}'
+      RetentionInDays: 14
+
+  ProcessingCompleteHandlerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ProcessingCompleteHandler}'
+      RetentionInDays: 14
+
+  WeeklyDigestLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${WeeklyDigestLambda}'
+      RetentionInDays: 30
+
+  EC2ProcessingLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/ec2/visual-processing/${ProjectName}-${Environment}'
+      RetentionInDays: 7
+
+Outputs:
+  TweetDigestBucket:
+    Description: 'S3 bucket for storing tweet data and processing results'
+    Value: !Ref TweetDigestBucket
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-bucket'
+
+  SubscribersTable:
+    Description: 'DynamoDB table for subscriber management'
+    Value: !Ref SubscribersTable
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-subscribers-table'
+
+  ProcessingNotificationTopic:
+    Description: 'SNS topic for processing notifications'
+    Value: !Ref ProcessingNotificationTopic
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-notifications-topic'
+
+  VisualProcessingDispatcher:
+    Description: 'Lambda function for dispatching visual processing to EC2'
+    Value: !Ref VisualProcessingDispatcher
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-visual-dispatcher'
+
+  EC2AutoScalingGroup:
+    Description: 'Auto Scaling Group for visual processing EC2 instances'
+    Value: !Ref EC2AutoScalingGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-ec2-asg'
+
+  WeeklyDigestLambda:
+    Description: 'Weekly digest Lambda function with hybrid processing'
+    Value: !Ref WeeklyDigestLambda
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-weekly-digest'
+
+  ProcessingVPC:
+    Description: 'VPC for visual processing EC2 instances'
+    Value: !Ref ProcessingVPC
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-processing-vpc'
+
+  Configuration:
+    Description: 'Current configuration summary'
+    Value: !Sub |
+      Processing Mode: ${ProcessingMode}
+      Visual Capture: ${EnableVisualCapture}
+      Instance Type: ${EC2InstanceType}
+      Max Processing Time: ${MaxProcessingTime} seconds
+      Environment: ${Environment} 

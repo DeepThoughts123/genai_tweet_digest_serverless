@@ -1,0 +1,60 @@
+{
+  "tweet_url": "https://twitter.com/andrewyng/status/1928099650269237359",
+  "capture_timestamp": "2025-06-02T20:54:06.667099",
+  "screenshots": {
+    "individual_files": [
+      "1928099650269237359_20250602_205358_page_00.png",
+      "1928099650269237359_20250602_205358_page_01.png",
+      "1928099650269237359_20250602_205358_page_02.png",
+      "1928099650269237359_20250602_205358_page_03.png"
+    ],
+    "count": 4,
+    "total_dimensions": {
+      "width": 1229,
+      "height": 7376
+    }
+  },
+  "cropping": {
+    "enabled": true,
+    "coordinates": {
+      "x1_percent": 31,
+      "y1_percent": 0,
+      "x2_percent": 63,
+      "y2_percent": 98
+    }
+  },
+  "api_metadata": {
+    "id": "1928099650269237359",
+    "url": "https://twitter.com/unknown/status/1928099650269237359",
+    "text": "I am alarmed by the proposed cuts to U.S. funding for basic research, and the impact this would have for U.S. competitiveness in AI and other areas. Funding research that is openly shared benefits the whole world, but the nation it benefits most is the one where the research is",
+    "author": {
+      "id": "216939636",
+      "username": "unknown",
+      "name": "Unknown"
+    },
+    "created_at": "2025-05-29T14:42:33+00:00",
+    "conversation_id": "1928099650269237359",
+    "metrics": {
+      "likes": 2641,
+      "retweets": 473,
+      "replies": 110,
+      "quotes": 45,
+      "bookmarks": 472,
+      "impressions": 297959
+    }
+  },
+  "output_directory": "visual_captures/andrewyng/tweet_1928099650269237359",
+  "tweet_metadata": {
+    "full_text": "I am alarmed by the proposed cuts to U.S. funding for basic research, and the impact this would have for U.S. competitiveness in AI and other areas. Funding research that is openly shared benefits the whole world, but the nation it benefits most is the one where the research is done.\n\nIf not for funding for my early work in deep learning from the National Science Foundation (NSF) and Defense Advanced Research Projects Agency (DARPA), which disburse a good deal of U.S. research funding, I would not have discovered lessons about scaling that led me to pitch starting Google Brain to scale up deep learning. I am worried that cuts to funding for basic science will lead the U.S. — and also the world — to miss out on the next set of ideas.\n\nIn fact, such funding benefits the U.S. more than any other nation. Scientific research brings the greatest benefit to the country where the work happens because (i) the new knowledge diffuses fastest within that country, and (ii) the process of doing research creates new talent for that nation.\n\nWhy does most innovation in generative AI still happen in Silicon Valley? Because two teams based in this area — Google Brain, which invented the transformer network, and OpenAI, which scaled it up — did a lot of the early work. Subsequently, team members moved to other nearby businesses, started competitors, or worked with local universities. Further, local social networks rapidly diffused the knowledge through casual coffee meetings, local conferences, and even children's play dates, where parents of like-aged kids meet and discuss technical ideas. In this way, the knowledge spread faster within Silicon Valley than to other geographies.\n\nIn a similar vein, research done in the U.S. diffuses to others in the U.S. much faster than to other geographic areas. This is particularly true when the research is openly shared through papers and/or open source: If researchers have permission to talk about an idea, they can share much more information, such as tips and tricks for how to really make an algorithm work, more quickly. It also lets others figure out faster who can answer their questions. Diffusion of knowledge created in academic environments is especially fast. Academia tends to be completely open, and students and professors, unlike employees of many companies, have full permission to talk about their work.\n\nThus funding basic research in the U.S. benefits the U.S. most, and also benefits our allies. It is true that openness benefits our adversaries, too. But as a subcommittee of the U.S. House of Representatives committee on science, space, and technology points out, “... open sharing of fundamental research is [not] without risk. Rather, ... openness in research is so important to competitiveness and security that it warrants the risk that adversaries may benefit from scientific openness as well.”\n\nFurther, generative AI is evolving so rapidly that staying on the cutting edge is what's really critical. For example, the fact that many teams can now train a model with GPT-3.5- or even GPT-4-level capability does not seem to be hurting OpenAI much, which is busy growing its business by developing the cutting-edge o4, Codex, GPT-4.1, and so on. Those who invent a technology get to commercialize it first, and in a fast-moving world, the cutting-edge technology is what's most valuable. Some studies (link in original post, below) also show how knowledge diffuses locally much faster than globally.\n\nChina was decisively behind the U.S. in generative AI when ChatGPT was first launched in 2022. However, China's tech ecosystem is very open internally, and this has helped it to catch up over the past two years:\n- There is ample funding for open academic research in China.\n- China's businesses such as DeepSeek and Alibaba have released cutting-edge, open-weights models. This openness at the corporate level accelerates diffusion of knowledge.\n- China's labor laws make non-compete agreements (which stop an employee from jumping ship to a competitor) relatively hard to enforce, and the work culture supports significant idea sharing among employees of different companies; this has made circulation of ideas relatively efficient.\n\nWhile there's also much about China that I would not want the U.S. to emulate, the openness of its tech ecosystem has helped it accelerate.\n\nIn 1945, Vannevar Bush's landmark report “Science, The Endless Frontier” laid down key principles for public funding of U.S. research and talent development. Those principles enabled the U.S. to dominate scientific progress for decades. U.S. federal funding for science created numerous breakthroughs that have benefited the U.S. tremendously, and also the world, while training generations of domestic scientists, as well as immigrants who likewise benefit the U.S.\n\nThe good news is that this playbook is now well known. I hope many more nations will imitate it and invest heavily in science and talent. And I hope that, having pioneered this very successful model, the U.S. will not pull back from it by enacting drastic cuts to funding scientific research.\n\n[Original post, with links: deeplearning.ai/the-batch/issu... ]",
+    "summary": "Andrew Ng expresses concerns about proposed cuts to U.S. funding for basic research, arguing that it will negatively impact U.S. competitiveness in AI and other fields, while highlighting the benefits of open research and knowledge diffusion, especially compared to China's approach.",
+    "reply_count": "110",
+    "retweet_count": "518",
+    "like_count": "2.6K",
+    "bookmark_count": "472",
+    "extraction_timestamp": "2025-06-02T20:54:41.918883"
+  },
+  "L1_category": "Opinion & Commentary",
+  "categorization_confidence": "high",
+  "categorization_reasoning": "The tweet expresses a strong opinion about the importance of funding basic research, the potential negative impacts of funding cuts, and makes comparisons between the US and China's approach to AI research and development. It is clearly a commentary on policy and its impact on AI.",
+  "categorization_timestamp": "2025-06-02T21:31:08.807824"
+}

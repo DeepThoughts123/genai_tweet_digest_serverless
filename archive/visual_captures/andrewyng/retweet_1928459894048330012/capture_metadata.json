@@ -1,0 +1,59 @@
+{
+  "tweet_url": "https://twitter.com/andrewyng/status/1928459894048330012",
+  "capture_timestamp": "2025-06-02T20:53:40.137150",
+  "screenshots": {
+    "individual_files": [
+      "1928459894048330012_20250602_205334_page_00.png",
+      "1928459894048330012_20250602_205334_page_01.png",
+      "1928459894048330012_20250602_205334_page_02.png"
+    ],
+    "count": 3,
+    "total_dimensions": {
+      "width": 1229,
+      "height": 5532
+    }
+  },
+  "cropping": {
+    "enabled": true,
+    "coordinates": {
+      "x1_percent": 31,
+      "y1_percent": 0,
+      "x2_percent": 63,
+      "y2_percent": 98
+    }
+  },
+  "api_metadata": {
+    "id": "1928459894048330012",
+    "url": "https://twitter.com/unknown/status/1928459894048330012",
+    "text": "RT @Dan_Jeffries1: \"If not for funding for my early work in deep learning from the National Science Foundation (NSF)  and Defense Advanced…",
+    "author": {
+      "id": "216939636",
+      "username": "unknown",
+      "name": "Unknown"
+    },
+    "created_at": "2025-05-30T14:34:02+00:00",
+    "conversation_id": "1928459894048330012",
+    "metrics": {
+      "likes": 0,
+      "retweets": 47,
+      "replies": 0,
+      "quotes": 0,
+      "bookmarks": 0,
+      "impressions": 42
+    }
+  },
+  "output_directory": "visual_captures/andrewyng/retweet_1928459894048330012",
+  "tweet_metadata": {
+    "full_text": "\"If not for funding for my early work in deep learning from the National Science Foundation (NSF) and Defense Advanced Research Projects Agency (DARPA), which disburse a good deal of U.S. research funding, I would not have discovered lessons about scaling that led me to pitch starting Google Brain to scale up deep learning. I am worried that cuts to funding for basic science will lead the U.S. — and also the world — to miss out on the next set of ideas,\" writes Andrew Ng.\n\nThe government spends a fraction of its budget on basic research and we are about cause a chain reaction of losing down the line because of it.\n\nEach technology is built on the back of the technologies that came before it.\n\nIf we don't get clear glass, we don't get eyeglasses, and if we don't get eyeglasses the Dutch eyeglass maker doesn't see his kids using two to magnify things and then we don't get the microscope, and if we don't get the microscope, we don't get germ theory and the marvel of modern medicine.\n\nAs James Pethokoukis writes in the Conservative Futurist:\n\n\"At the height of the 1960s Space Race, the United States spent nearly 3 percent of its economy on scientific and technological research and development.17 Of that total, about 2 percent was government funding and 1 percent business funding.\n\n\"Today, the United States spends…about 0.75 percent by government. (All the various spending bills passed during the first half of the Biden administration—the Bipartisan Infrastructure Act, the CHIPS and Science Act, the Inflation Reduction Act—didn't change federal R&D investment that much.)\n\n\"So especially on the government side, there's still plenty of room to dramatically ramp up spending without approaching those Apollo-era levels.\n\n\"Now there's no such thing as a free lunch or a money tree. But America's science and technological innovation system is about as close to having a tasty free lunch beneath a blooming money tree as you're likely to find.\n\n\"Or think of it this way: imagine having a miracle machine where we can put in $1 and get back $5 in the form of higher standards of living, health, and worker productivity, as some economists calculate.\n\n\"Of course, the exact product of this machine is hard to predict. Think of the daisy chain of science research and commercial innovation that created Uber.\n\n\"It started with Albert Einstein's special theory of relativity, without which we wouldn't have the Global Positioning System.19 For GPS to work, it needs to compare extremely accurate time signals from atomic clocks on satellites. But since those satellites are moving at a high velocity compared to Earth-bound Uber app users and experience time differently, they need to be adjusted according to Einstein's equation. And if no GPS, no Uber with its smartphone-based business model.\"\n\nWe invest in the future or we watch the future pass us by.",
+    "summary": "Daniel Jeffries emphasizes the importance of government funding for basic research, citing his own experiences and historical examples, and warns against the consequences of cutting such funding. He argues that investment in science and technology fuels innovation and economic growth, using Uber and GPS as examples of the benefits of basic research.",
+    "reply_count": "10",
+    "retweet_count": "49",
+    "like_count": "114",
+    "bookmark_count": "16",
+    "extraction_timestamp": "2025-06-02T20:54:34.369379"
+  },
+  "L1_category": "Opinion & Commentary",
+  "categorization_confidence": "high",
+  "categorization_reasoning": "The tweet summary presents a strong opinion on the importance of government funding for basic scientific research, with examples and arguments supporting this viewpoint. It aligns with the definition of 'Personal opinions, industry commentary, predictions, and thought leadership pieces'.",
+  "categorization_timestamp": "2025-06-02T21:31:07.750765"
+}

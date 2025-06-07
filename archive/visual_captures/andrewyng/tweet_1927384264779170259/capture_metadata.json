@@ -1,0 +1,57 @@
+{
+  "tweet_url": "https://twitter.com/andrewyng/status/1927384264779170259",
+  "capture_timestamp": "2025-06-02T20:54:17.448939",
+  "screenshots": {
+    "individual_files": [
+      "1927384264779170259_20250602_205414_page_00.png"
+    ],
+    "count": 1,
+    "total_dimensions": {
+      "width": 1229,
+      "height": 1844
+    }
+  },
+  "cropping": {
+    "enabled": true,
+    "coordinates": {
+      "x1_percent": 31,
+      "y1_percent": 0,
+      "x2_percent": 63,
+      "y2_percent": 98
+    }
+  },
+  "api_metadata": {
+    "id": "1927384264779170259",
+    "url": "https://twitter.com/unknown/status/1927384264779170259",
+    "text": "Agentic Document Extraction just got much faster! From previous 135sec median processing time down to 8sec. Extracts not just text but diagrams, charts, and form fields from PDFs to give LLM-ready output. Please see the video for details and some application ideas. https://t.co/29lOKf6UGO",
+    "author": {
+      "id": "216939636",
+      "username": "unknown",
+      "name": "Unknown"
+    },
+    "created_at": "2025-05-27T15:19:52+00:00",
+    "conversation_id": "1927384264779170259",
+    "metrics": {
+      "likes": 3847,
+      "retweets": 606,
+      "replies": 98,
+      "quotes": 25,
+      "bookmarks": 4143,
+      "impressions": 277017
+    }
+  },
+  "output_directory": "visual_captures/andrewyng/tweet_1927384264779170259",
+  "tweet_metadata": {
+    "full_text": "Agentic Document Extraction just got much faster! From previous 135sec\nmedian processing time down to 8sec. Extracts not just text but\ndiagrams, charts, and form fields from PDFs to give LLM-ready output.\nPlease see the video for details and some application ideas.",
+    "summary": "Andrew Ng announces that Agentic Document Extraction is now much faster, with median processing time reduced to 8 seconds, and extracts not just text, but also diagrams, charts, and form fields from PDFs to give LLM-ready output.",
+    "reply_count": "98",
+    "retweet_count": "631",
+    "like_count": "3.8K",
+    "bookmark_count": "4.1K",
+    "extraction_timestamp": "2025-06-02T20:54:28.970150"
+  },
+  "L1_category": "Tools & Resources",
+  "categorization_confidence": "high",
+  "categorization_reasoning": "The tweet describes a tool that extracts information from PDFs and prepares it for LLMs, focusing on its speed and capabilities. This aligns with providing a useful resource for AI/ML practitioners.",
+  "categorization_timestamp": "2025-06-02T21:31:06.759111"
+}

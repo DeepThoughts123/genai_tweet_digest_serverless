@@ -1,0 +1,57 @@
+{
+  "tweet_url": "https://twitter.com/andrewyng/status/1928105439368995193",
+  "capture_timestamp": "2025-06-02T20:53:50.694717",
+  "screenshots": {
+    "individual_files": [
+      "1928105439368995193_20250602_205348_page_00.png"
+    ],
+    "count": 1,
+    "total_dimensions": {
+      "width": 1229,
+      "height": 1844
+    }
+  },
+  "cropping": {
+    "enabled": true,
+    "coordinates": {
+      "x1_percent": 31,
+      "y1_percent": 0,
+      "x2_percent": 63,
+      "y2_percent": 98
+    }
+  },
+  "api_metadata": {
+    "id": "1928105439368995193",
+    "url": "https://twitter.com/unknown/status/1928105439368995193",
+    "text": "RT @EdgeOfFiRa: @AndrewYNg The ROI math is staggering. DARPA invested maybe $50M in early deep learning research that created hundreds of b…",
+    "author": {
+      "id": "216939636",
+      "username": "unknown",
+      "name": "Unknown"
+    },
+    "created_at": "2025-05-29T15:05:33+00:00",
+    "conversation_id": "1928105439368995193",
+    "metrics": {
+      "likes": 0,
+      "retweets": 38,
+      "replies": 0,
+      "quotes": 0,
+      "bookmarks": 0,
+      "impressions": 3
+    }
+  },
+  "output_directory": "visual_captures/andrewyng/retweet_1928105439368995193",
+  "tweet_metadata": {
+    "full_text": "The ROI math is staggering. DARPA invested maybe $50M in early deep\nlearning research that created hundreds of billions in market value\nthrough Google Brain alone.\n\nMeanwhile we're penny-wise, pound-foolish; debating cuts to programs\nthat historically return 20-30x while China pours money into AI research\nlike water.\n\nBasic research isn't an expense, it's the highest-leverage investment a\nnation can make.\n\nAnd great powers seldom fall from external conquest. They fall from\ninternal complacency about the fundamentals that made them great...",
+    "summary": "The tweet discusses the significant return on investment from DARPA's early deep learning research, contrasting it with current debates on program cuts while China heavily invests in AI, arguing that basic research is a crucial national investment that prevents internal complacency.",
+    "reply_count": "7",
+    "retweet_count": "39",
+    "like_count": "92",
+    "bookmark_count": "21",
+    "extraction_timestamp": "2025-06-02T20:54:25.681280"
+  },
+  "L1_category": "Opinion & Commentary",
+  "categorization_confidence": "high",
+  "categorization_reasoning": "The tweet expresses an opinion on the ROI of DARPA's investment in deep learning and criticizes potential cuts to AI research funding. It provides commentary on the importance of basic research and the dangers of complacency.",
+  "categorization_timestamp": "2025-06-02T21:31:05.811282"
+}
