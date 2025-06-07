@@ -13,6 +13,8 @@ from dataclasses import asdict
 from shared.classification.classifier import HierarchicalClassifier
 from shared.classification.llm_client import LLMClient
 from shared.queue import InMemoryQueue, SQSQueue
+from shared.store import Store
+
 from shared.taxonomy import get_registry
 
 
@@ -29,7 +31,7 @@ class InMemoryStore:
 class ClassifierService:  # noqa: D101
     _BATCH_SIZE = 10
 
-    def __init__(self, queue, store, classifier: HierarchicalClassifier):
+    def __init__(self, queue, store: Store, classifier: HierarchicalClassifier):
         self._queue = queue
         self._store = store
         self._classifier = classifier
@@ -51,4 +53,5 @@ class ClassifierService:  # noqa: D101
                 logging.exception("Failed to classify tweet %s: %s", tweet_id, exc)
         if results:
             self._store.put_batch(results)
+            logging.info("Processed %d tweets", len(results))
         return len(results) 

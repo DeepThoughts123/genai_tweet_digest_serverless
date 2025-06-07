@@ -6,7 +6,8 @@
 
 # Testing dependencies
 pytest>=7.0.0
-moto[dynamodb,ses]>=5.0.0
+pytest-asyncio
+moto[dynamodb,ses,boto3]>=5.0.0
 
 # Code quality
 black>=22.0.0
