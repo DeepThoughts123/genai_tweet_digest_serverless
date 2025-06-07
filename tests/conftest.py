@@ -6,10 +6,15 @@ import pytest
 import sys
 import os
 
-# Add src directory to Python path for imports
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Ensure project root and src directory are importable
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
+
+# Also add src explicitly for convenience
 src_dir = os.path.join(root_dir, 'src')
-sys.path.insert(0, src_dir)
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_environment():
