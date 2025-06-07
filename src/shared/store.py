@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from typing import List, Protocol
+from decimal import Decimal
 
 try:
     import boto3  # type: ignore
@@ -28,5 +29,7 @@ class DynamoDBStore:
         # DynamoDB batch_writer handles retries automatically
         with self._table.batch_writer() as batch:
             for item in results:
-                batch.put_item(Item=item)
+                # Convert floats to Decimals for DynamoDB compatibility
+                fixed = {k: (Decimal(str(v)) if isinstance(v, float) else v) for k, v in item.items()}
+                batch.put_item(Item=fixed)
         logging.debug("Persisted %d items to DynamoDB", len(results)) 
