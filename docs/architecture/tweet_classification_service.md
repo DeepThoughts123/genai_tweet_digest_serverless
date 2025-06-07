@@ -143,6 +143,44 @@ Tactics:
 5. **Phase 4 – Fine-Tuned Transformer**: Two-stage local model (CPU/GPU) to replace LLM calls.
 6. **Phase 5 – Backfill & Rollout**: Re-process historical tweets with new `classifier_version`.
 
+## Phase 4 Update – Production Infrastructure
+
+The classifier now has a complete production-grade deployment path.
+
+### Docker Image
+The repository root contains a multi-stage `Dockerfile` that builds a slim Python 3.11 image with the classifier code and its dependencies. Default entry-point runs the async runner:
+
+```bash
+docker build -t tweet-classifier .
+docker run -e QUEUE_URL=… -e DDB_TABLE=… -e OPENAI_API_KEY=sk-… tweet-classifier
+```
+
+### AWS CDK Stack
+Directory `infrastructure/` holds a CDK app with a `ClassifierStack` that creates:
+
+* `ClassificationQueue` (SQS) – incoming work items.
+* `TweetTopicsTable` (DynamoDB) – classification results (PK `tweet_id`).
+* Docker image asset built from the repo's `Dockerfile` and deployed behind an Application-Load-Balanced Fargate service.
+
+Synthesise with:
+
+```bash
+cd infrastructure
+cdk synth
+```
+
+### Continuous Testing
+* **Unit tests** cover taxonomy, prompt construction, queue/store abstractions, async runner, etc. Run via `pytest -q`.
+* **Integration test** (`tests/integration/test_e2e_classifier.py`) spins up moto-backed SQS & DynamoDB, runs the in-process service, and asserts end-to-end writes.
+
+To execute integration tests locally:
+
+```bash
+pytest -m integration
+```
+
+These additions complete Phase 4. The next milestone is to hook image build / push and CDK deploy into the CI/CD pipeline.
+
 ## Next Steps
 
 1. Final prompt wording & few-shot examples.

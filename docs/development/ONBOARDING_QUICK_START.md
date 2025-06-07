@@ -42,3 +42,19 @@ Start with these four documents to get a solid, high-level understanding of the 
     *   The project's target audience.
     *   The core features we've implemented (e.g., tweet curation, AI summarization, email distribution).
     *   The business and technical requirements that have shaped the application from the start.
+
+#### 5. **Hierarchical Tweet-Classification Service (`docs/architecture/tweet_classification_service.md`)**
+*   **Location**: `docs/architecture/`
+*   **Purpose**: Deep-dive on our two-level tweet classifier—LLM prompts, data schema, scaling targets, and phased rollout plan.
+*   **What you'll learn**:
+    *   How the sequential LLM calls are wired (L1 ➜ L2).
+    *   Where to find pipeline code (`src/shared`, `src/fargate`).
+    *   How to run it locally via Docker or the async runner.
+
+#### 6. **Infrastructure Stack (`infrastructure/` CDK app)**
+*   **Location**: `infrastructure/`
+*   **Purpose**: Infrastructure-as-Code definitions for the classifier's AWS resources.
+*   **What you'll learn**:
+    *   How the SQS queue, DynamoDB table, and Fargate service are provisioned.
+    *   How to synthesise the CloudFormation template with `cdk synth`.
+    *   Integration test setup using moto to emulate AWS locally.
