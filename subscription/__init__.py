@@ -1,0 +1,1 @@
+"""Compatibility package exposing subscription.lambda_function for legacy tests.""" 

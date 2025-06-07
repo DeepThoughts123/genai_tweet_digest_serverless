@@ -1,0 +1,1 @@
+"""Compatibility package exposing unsubscribe.lambda_function for legacy tests.""" 
