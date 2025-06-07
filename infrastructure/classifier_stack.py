@@ -76,4 +76,8 @@ if cdk is not None:  # pragma: no cover – only executed when CDK present
 
             # Permissions
             queue.grant_consume_messages(task_def.task_role)
-            table.grant_write_data(task_def.task_role) 
+            table.grant_write_data(task_def.task_role)
+
+            # --- Outputs ---
+            cdk.CfnOutput(self, "QueueUrl", value=queue.queue_url)
+            cdk.CfnOutput(self, "TableName", value=table.table_name) 
