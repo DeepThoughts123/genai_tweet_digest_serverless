@@ -1,0 +1,205 @@
+[
+  {
+    "level": 1,
+    "name": "Breakthrough Research",
+    "description": "Novel scientific advances in GenAI—papers, theories, and results that push the frontier.",
+    "subcategories": [
+      {
+        "level": 2,
+        "name": "Architecture Innovations",
+        "description": "Brand-new network designs, modality fusions, mixture-of-experts tricks, or other structural breakthroughs."
+      },
+      {
+        "level": 2,
+        "name": "Training Methods",
+        "description": "Fresh objectives, curriculum schedules, RLHF/DPO variants, or any novel way to teach a model."
+      }
+    ]
+  },
+  {
+    "level": 1,
+    "name": "Model & Product Launches",
+    "description": "Official releases or major updates for GenAI models, APIs, and commercial features.",
+    "subcategories": [
+      {
+        "level": 2,
+        "name": "Foundation Releases",
+        "description": "Flagship checkpoints such as GPT-class or Llama-class model drops—open or proprietary."
+      },
+      {
+        "level": 2,
+        "name": "API & SDK Updates",
+        "description": "New endpoints, SDK versions, context-window bumps, pricing changes, or rate-limit shifts."
+      }
+    ]
+  },
+  {
+    "level": 1,
+    "name": "Engineering How-Tos",
+    "description": "Actionable implementation guidance for building, tuning, and running GenAI systems.",
+    "subcategories": [
+      {
+        "level": 2,
+        "name": "Prompt & Retrieval Tips",
+        "description": "Prompt-engineering recipes, RAG tricks, vector-search tweaks, and chain-of-thought hacks."
+      },
+      {
+        "level": 2,
+        "name": "Fine-Tuning",
+        "description": "LoRA/PEFT settings, hyper-parameter anecdotes, dataset prep advice, and checkpoint merging."
+      },
+      {
+        "level": 2,
+        "name": "Inference Optimization",
+        "description": "Speculative decoding, batching strategies, GPU memory tricks, and latency-reduction guides."
+      },
+      {
+        "level": 2,
+        "name": "Data Pipelines",
+        "description": "Ingestion, cleaning, augmentation, labeling, and synthetic-data generation workflows."
+      },
+      {
+        "level": 2,
+        "name": "Ops & Monitoring",
+        "description": "Canary deploys, eval pipelines, drift detection, and production observability patterns."
+      },
+      {
+        "level": 2,
+        "name": "Other",
+        "description": "Tweets related to Engineering How-Tos that don't fit existing subcategories; reviewed regularly to refine the taxonomy."
+      }
+    ]
+  },
+  {
+    "level": 1,
+    "name": "Tools & Open Source",
+    "description": "Libraries, datasets, and other OSS resources that accelerate GenAI work.",
+    "subcategories": [
+      {
+        "level": 2,
+        "name": "Libraries & Frameworks",
+        "description": "LangChain, LlamaIndex, transformers updates, Triton kernels, and similar codebases."
+      },
+      {
+        "level": 2,
+        "name": "Model Weights",
+        "description": "New checkpoints, adapter packs, quantized models, and fine-tuned variants released to the public."
+      },
+      {
+        "level": 2,
+        "name": "Eval Tooling",
+        "description": "Benchmark harnesses, red-teaming suites, alignment-testing repos, and eval dashboards."
+      },
+      {
+        "level": 2,
+        "name": "Datasets & Loaders",
+        "description": "Public corpora, dataset loaders, curation scripts, and data-format utilities."
+      },
+      {
+        "level": 2,
+        "name": "Plugins & Integrations",
+        "description": "Extensions for IDEs, browsers, Slack bots, and other ecosystem add-ons."
+      },
+      {
+        "level": 2,
+        "name": "Other",
+        "description": "Tweets related to Tools & Open Source that don't fit existing subcategories; reviewed regularly to refine the taxonomy."
+      }
+    ]
+  },
+  {
+    "level": 1,
+    "name": "Applied Use-Cases & Demos",
+    "description": "Practical or creative showcases that demonstrate GenAI in action.",
+    "subcategories": [
+      {
+        "level": 2,
+        "name": "Productivity",
+        "description": "AI meeting notes, email drafting, spreadsheet copilots, and personal workflow boosters."
+      },
+      {
+        "level": 2,
+        "name": "Creative Media",
+        "description": "Image, video, music, or 3-D generation demos and artistic experiments."
+      },
+      {
+        "level": 2,
+        "name": "Code & Dev",
+        "description": "Code completion, bug-bash bots, agentic IDE helpers, and DevOps copilots."
+      },
+      {
+        "level": 2,
+        "name": "Science & Research",
+        "description": "Molecule design, climate modeling, math-proof assistance, and other scientific applications."
+      },
+      {
+        "level": 2,
+        "name": "Vertical Solutions",
+        "description": "Industry-specific apps—legal drafting, healthcare scribes, fintech KYC, retail chatbots, etc."
+      },
+      {
+        "level": 2,
+        "name": "Other",
+        "description": "Tweets related to Applied Use-Cases & Demos that don't fit existing subcategories; reviewed regularly to refine the taxonomy."
+      }
+    ]
+  },
+  {
+    "level": 1,
+    "name": "Business & Funding Moves",
+    "description": "Commercial developments that shape the GenAI market landscape.",
+    "subcategories": [
+      {
+        "level": 2,
+        "name": "Funding Rounds",
+        "description": "Seed-to-mega raises, debt financing, and crowd-funding announcements."
+      },
+      {
+        "level": 2,
+        "name": "M&A & Exits",
+        "description": "Acquisitions, mergers, IPO filings, and strategic asset sales."
+      },
+      {
+        "level": 2,
+        "name": "Partnerships",
+        "description": "Cloud provider deals, enterprise integrations, government contracts, and ecosystem alliances."
+      },
+      {
+        "level": 2,
+        "name": "Market Metrics",
+        "description": "Adoption stats, ARR milestones, market-size reports, and macro-trend analyses."
+      },
+      {
+        "level": 2,
+        "name": "Business Models",
+        "description": "Pricing overhauls, revenue-sharing schemes, licensing changes, and SaaS tier experiments."
+      },
+      {
+        "level": 2,
+        "name": "Other",
+        "description": "Tweets related to Business & Funding Moves that don't fit existing subcategories; reviewed regularly to refine the taxonomy."
+      }
+    ]
+  },
+  {
+    "level": 1,
+    "name": "Ethics, Safety & Policy",
+    "description": "Responsible-AI discussions covering alignment, regulation, and societal impact.",
+    "subcategories": [
+      {
+        "level": 2,
+        "name": "Alignment Research",
+        "description": "Constitutional AI, reward-model studies, adversarial testing, and governance proposals."
+      },
+      {
+        "level": 2,
+        "name": "Bias & Fairness",
+        "description": "Demographic audits, bias-mitigation methods, and fairness evaluation results."
+      },
+      {
+        "level": 2,
+        "name": "Regulation & Legislati"
+      }
+    ]
+  }
+] 
