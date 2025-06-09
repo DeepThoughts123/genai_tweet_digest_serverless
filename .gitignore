@@ -242,3 +242,8 @@ response.json
 # CDK output files (may contain sensitive data)
 infrastructure/cdk.out/
 *.cdk.out/
+
+# CDK output files (may contain sensitive data)
+cdk.out/
+*.cdk.staging/
+.cdk.staging/
