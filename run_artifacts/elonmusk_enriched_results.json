@@ -1,0 +1,55 @@
+{
+  "success": true,
+  "account": "elonmusk",
+  "total_items_captured": 5,
+  "threads_captured": 0,
+  "individual_tweets_captured": 5,
+  "summary_s3_location": "s3://classifierstack-tweetscreenshotbucketb280f4b5-utgkcgleaevv/visual_captures/2025-06-08/elonmusk/capture_summary.json",
+  "captured_items": [
+    {
+      "type": "individual_tweet",
+      "content_type": "retweet",
+      "tweet_id": "1931868795699892269",
+      "screenshot_count": 1,
+      "s3_location": "s3://classifierstack-tweetscreenshotbucketb280f4b5-utgkcgleaevv/visual_captures/2025-06-08/elonmusk/retweet_1931868795699892269/",
+      "metadata_s3_location": "s3://classifierstack-tweetscreenshotbucketb280f4b5-utgkcgleaevv/visual_captures/2025-06-08/elonmusk/retweet_1931868795699892269/capture_metadata.json",
+      "success": true
+    },
+    {
+      "type": "individual_tweet",
+      "content_type": "retweet",
+      "tweet_id": "1931860729981985005",
+      "screenshot_count": 1,
+      "s3_location": "s3://classifierstack-tweetscreenshotbucketb280f4b5-utgkcgleaevv/visual_captures/2025-06-08/elonmusk/retweet_1931860729981985005/",
+      "metadata_s3_location": "s3://classifierstack-tweetscreenshotbucketb280f4b5-utgkcgleaevv/visual_captures/2025-06-08/elonmusk/retweet_1931860729981985005/capture_metadata.json",
+      "success": true
+    },
+    {
+      "type": "individual_tweet",
+      "content_type": "tweet",
+      "tweet_id": "1931860585525997640",
+      "screenshot_count": 1,
+      "s3_location": "s3://classifierstack-tweetscreenshotbucketb280f4b5-utgkcgleaevv/visual_captures/2025-06-08/elonmusk/tweet_1931860585525997640/",
+      "metadata_s3_location": "s3://classifierstack-tweetscreenshotbucketb280f4b5-utgkcgleaevv/visual_captures/2025-06-08/elonmusk/tweet_1931860585525997640/capture_metadata.json",
+      "success": true
+    },
+    {
+      "type": "individual_tweet",
+      "content_type": "retweet",
+      "tweet_id": "1931856576656420919",
+      "screenshot_count": 1,
+      "s3_location": "s3://classifierstack-tweetscreenshotbucketb280f4b5-utgkcgleaevv/visual_captures/2025-06-08/elonmusk/retweet_1931856576656420919/",
+      "metadata_s3_location": "s3://classifierstack-tweetscreenshotbucketb280f4b5-utgkcgleaevv/visual_captures/2025-06-08/elonmusk/retweet_1931856576656420919/capture_metadata.json",
+      "success": true
+    },
+    {
+      "type": "individual_tweet",
+      "content_type": "tweet",
+      "tweet_id": "1931855149338906780",
+      "screenshot_count": 1,
+      "s3_location": "s3://classifierstack-tweetscreenshotbucketb280f4b5-utgkcgleaevv/visual_captures/2025-06-08/elonmusk/tweet_1931855149338906780/",
+      "metadata_s3_location": "s3://classifierstack-tweetscreenshotbucketb280f4b5-utgkcgleaevv/visual_captures/2025-06-08/elonmusk/tweet_1931855149338906780/capture_metadata.json",
+      "success": true
+    }
+  ]
+}

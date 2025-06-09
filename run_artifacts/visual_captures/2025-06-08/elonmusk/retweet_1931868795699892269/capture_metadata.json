@@ -1,0 +1,38 @@
+{
+  "tweet_id": "1931868795699892269",
+  "tweet_url": "https://twitter.com/elonmusk/status/1931868795699892269",
+  "content_type": "retweet",
+  "capture_timestamp": "2025-06-08T20:47:34.950800",
+  "screenshot_count": 1,
+  "s3_screenshots": [
+    "run_artifacts/visual_captures/2025-06-08/elonmusk/retweet_1931868795699892269/1931868795699892269_20250608_204730_page_00.png"
+  ],
+  "s3_bucket": "local",
+  "s3_folder_prefix": "visual_captures/2025-06-08/elonmusk/retweet_1931868795699892269/",
+  "browser_zoom": "60_percent",
+  "cropping": {
+    "enabled": false,
+    "coordinates": null
+  },
+  "tweet_metadata": {
+    "id": "1931868795699892269",
+    "url": "https://twitter.com/elonmusk/status/1931868795699892269",
+    "text": "RT @BasedBeffJezos: Reading papers in 2020 vs \nreading papers in 2025 https://t.co/WmRzaDqBU0",
+    "author": {
+      "id": "44196397",
+      "username": "elonmusk",
+      "name": "elonmusk"
+    },
+    "created_at": "2025-06-09T00:19:47+00:00",
+    "conversation_id": "1931868795699892269",
+    "is_thread": false,
+    "metrics": {
+      "likes": 0,
+      "retweets": 245,
+      "replies": 0,
+      "quotes": 0,
+      "bookmarks": 0,
+      "impressions": 1
+    }
+  }
+}

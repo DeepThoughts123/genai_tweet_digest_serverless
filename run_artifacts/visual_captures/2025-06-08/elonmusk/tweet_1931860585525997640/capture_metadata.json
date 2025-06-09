@@ -1,0 +1,38 @@
+{
+  "tweet_id": "1931860585525997640",
+  "tweet_url": "https://twitter.com/elonmusk/status/1931860585525997640",
+  "content_type": "tweet",
+  "capture_timestamp": "2025-06-08T20:48:07.843749",
+  "screenshot_count": 1,
+  "s3_screenshots": [
+    "run_artifacts/visual_captures/2025-06-08/elonmusk/tweet_1931860585525997640/1931860585525997640_20250608_204801_page_00.png"
+  ],
+  "s3_bucket": "local",
+  "s3_folder_prefix": "visual_captures/2025-06-08/elonmusk/tweet_1931860585525997640/",
+  "browser_zoom": "60_percent",
+  "cropping": {
+    "enabled": false,
+    "coordinates": null
+  },
+  "tweet_metadata": {
+    "id": "1931860585525997640",
+    "url": "https://twitter.com/elonmusk/status/1931860585525997640",
+    "text": "That\u2019s an old pic. Starship will get longer. https://t.co/qS6NQwwA32",
+    "author": {
+      "id": "44196397",
+      "username": "elonmusk",
+      "name": "elonmusk"
+    },
+    "created_at": "2025-06-08T23:47:10+00:00",
+    "conversation_id": "1931860585525997640",
+    "is_thread": false,
+    "metrics": {
+      "likes": 16075,
+      "retweets": 1610,
+      "replies": 2582,
+      "quotes": 124,
+      "bookmarks": 598,
+      "impressions": 2183194
+    }
+  }
+}
