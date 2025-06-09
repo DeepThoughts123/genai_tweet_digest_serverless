@@ -32,6 +32,9 @@ Development guides and testing documentation:
 |----------|-------------|
 | [Development Setup](development/DEVELOPMENT_SETUP.md) | Environment setup and configuration |
 | [Testing Guide](development/TESTING_GUIDE.md) | Comprehensive testing documentation |
+| [Testing Best Practices Summary](development/TESTING_BEST_PRACTICES_SUMMARY.md) | Critical testing insights and common pitfalls |
+| [Troubleshooting Guide](development/TROUBLESHOOTING_GUIDE.md) | Solutions to common issues |
+| [Onboarding Quick Start](development/ONBOARDING_QUICK_START.md) | Quick start guide for newcomers |
 | [Frontend Testing Guide](development/FRONTEND_TESTING_GUIDE.md) | Frontend-specific testing |
 | [E2E Testing Plan](development/E2E_TESTING_PLAN.md) | End-to-end testing strategy |
 | [E2E Testing Quick Reference](development/E2E_TESTING_QUICK_REFERENCE.md) | Testing commands and examples |
@@ -44,6 +47,7 @@ Deployment guides and operational documentation:
 |----------|-------------|
 | [Deployment Workarounds](deployment/DEPLOYMENT_WORKAROUNDS.md) | Production deployment guide |
 | [Deployment Testing Guide](deployment/DEPLOYMENT_TESTING_GUIDE.md) | Testing deployment procedures |
+| [Fargate Deployment Checklist](deployment/FARGATE_DEPLOYMENT_CHECKLIST.md) | Pre-deployment verification steps |
 | [Lambda Optimization Strategy](deployment/LAMBDA_OPTIMIZATION_STRATEGY.md) | Performance optimization |
 | [Stack Management Guide](deployment/STACK_MANAGEMENT_GUIDE.md) | CloudFormation management |
 | [Schedule Management Guide](deployment/SCHEDULE_MANAGEMENT_GUIDE.md) | EventBridge scheduling |
