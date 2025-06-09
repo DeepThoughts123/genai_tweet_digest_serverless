@@ -27,7 +27,8 @@ from typing import List
 
 from shared import env
 from shared.queue import InMemoryQueue, SQSQueue
-from shared.store import DynamoDBStore, InMemoryStore  # type: ignore
+from shared.store import DynamoDBStore
+from src.fargate.classifier_service import InMemoryStore
 from shared.taxonomy import get_registry
 from src.fargate.classifier_service import ClassifierService
 
@@ -60,10 +61,12 @@ def main():  # noqa: D401
     ensure_dir(out_dir)
 
     fetcher = TweetFetcher()
-    capture_service: VisualTweetCaptureService | None = None
-    if not args.aws:
-        # local mode – store screenshots under output folder
-        capture_service = VisualTweetCaptureService(s3_bucket="local", zoom_percent=60)
+    
+    # Always instantiate capture_service
+    # In AWS mode, it will use the S3_BUCKET from env vars
+    # In local mode, it saves to the filesystem
+    s3_bucket = env.get("S3_BUCKET", "local") if args.aws else "local"
+    capture_service = VisualTweetCaptureService(s3_bucket=s3_bucket, zoom_percent=60)
 
     # queue / store selection
     if args.aws and env.get("QUEUE_URL"):
@@ -80,22 +83,23 @@ def main():  # noqa: D401
 
     for acct in args.accounts:
         print(f"=== Processing @{acct} ===")
-        tweet_urls = fetcher.fetch_recent_tweets(acct, days_back=args.days, max_tweets=args.max)
-        # save raw list
-        (out_dir / f"{acct}_tweet_urls.json").write_text(json.dumps(tweet_urls, indent=2))
-
-        for url in tweet_urls:
-            tweet_id = fetcher._extract_tweet_id_from_url(url)  # pylint: disable=protected-access
-            # Capture full text if needed (simplified heuristic: assume always needed)
-            if capture_service:
-                capture_service.capture_tweet_screenshots = getattr(
-                    capture_service, "_capture_tweet_screenshots", None
-                )  # noqa
-            # For brevity, just push fake text
-            queue.send({"tweet_id": tweet_id, "text": url})
+        # The capture service will fetch tweets, so we don't need to call fetcher directly.
+        enriched_results = capture_service.capture_account_content(
+            acct, days_back=args.days, max_tweets=args.max
+        )
+        (out_dir / f"{acct}_enriched_results.json").write_text(json.dumps(enriched_results, indent=2))
+        
+        # The enriched_results is a dict with 'captured_items' array
+        if enriched_results.get("success") and "captured_items" in enriched_results:
+            for item in enriched_results["captured_items"]:
+                if "metadata_s3_location" in item:
+                    print(f"Enqueuing: {item['metadata_s3_location']}")
+                    queue.send_message({"s3_metadata_path": item["metadata_s3_location"]})
 
     # Process queue until empty
-    while classifier_service.process_once() > 0:
+    # In AWS mode, this local processing loop is only for confirmation.
+    # The Fargate service will be the primary consumer.
+    while not args.aws and classifier_service.process_once() > 0:
         pass
 
     # Dump in-memory results if local

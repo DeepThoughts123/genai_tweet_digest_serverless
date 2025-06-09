@@ -1,0 +1,38 @@
+{
+  "tweet_id": "1931855149338906780",
+  "tweet_url": "https://twitter.com/elonmusk/status/1931855149338906780",
+  "content_type": "tweet",
+  "capture_timestamp": "2025-06-08T20:48:36.698248",
+  "screenshot_count": 1,
+  "s3_screenshots": [
+    "run_artifacts/visual_captures/2025-06-08/elonmusk/tweet_1931855149338906780/1931855149338906780_20250608_204832_page_00.png"
+  ],
+  "s3_bucket": "local",
+  "s3_folder_prefix": "visual_captures/2025-06-08/elonmusk/tweet_1931855149338906780/",
+  "browser_zoom": "60_percent",
+  "cropping": {
+    "enabled": false,
+    "coordinates": null
+  },
+  "tweet_metadata": {
+    "id": "1931855149338906780",
+    "url": "https://twitter.com/elonmusk/status/1931855149338906780",
+    "text": "It\u2019s outrageous how much character assassination has been directed at me, especially by me!",
+    "author": {
+      "id": "44196397",
+      "username": "elonmusk",
+      "name": "elonmusk"
+    },
+    "created_at": "2025-06-08T23:25:34+00:00",
+    "conversation_id": "1931855149338906780",
+    "is_thread": false,
+    "metrics": {
+      "likes": 40213,
+      "retweets": 2709,
+      "replies": 9098,
+      "quotes": 705,
+      "bookmarks": 1206,
+      "impressions": 2776109
+    }
+  }
+}
