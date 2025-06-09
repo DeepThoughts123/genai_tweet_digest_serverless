@@ -1003,3 +1003,170 @@ npm install --save-dev cypress
 > **Status**: **✅ COMPREHENSIVE COVERAGE ACHIEVED** - 99.3% overall test success rate with 92 backend tests, 24 frontend tests, production-grade retry mechanism validation, and robust end-to-end workflows. The testing infrastructure provides confidence for production deployment and ongoing maintenance.
 
 > **Last Updated**: June 2025 - Reflects 35% expansion in backend test coverage with comprehensive retry mechanism testing and maintained 100% backend test success rate. 
+
+## Tweet Classification Pipeline Testing
+
+### Overview
+The tweet classification pipeline is a Fargate-based service that processes tweets through visual capture and AI classification. This section documents the complete end-to-end testing process.
+
+### Prerequisites
+```bash
+# Environment variables needed
+export PYTHONPATH=$PWD/src:$PYTHONPATH
+export GEMINI_API_KEY=your-api-key  # or OPENAI_API_KEY
+export AWS_PROFILE=your-profile  # For S3 access
+export S3_BUCKET=your-bucket-name
+```
+
+### Step 1: Local Docker Testing
+Always test the Docker container locally before deploying to Fargate:
+
+```bash
+# Build the image
+docker build -t classifier-test .
+
+# Test basic startup (will fail on missing env vars, but should not have import errors)
+docker run --rm classifier-test python -m fargate.async_runner
+
+# Test with minimal environment
+docker run --rm \
+  -e AWS_DEFAULT_REGION=us-east-1 \
+  -e QUEUE_URL=test \
+  -e DDB_TABLE=test \
+  -e S3_BUCKET=test \
+  -e GEMINI_API_KEY=$GEMINI_API_KEY \
+  classifier-test python -m fargate.async_runner
+```
+
+### Step 2: Deploy Infrastructure
+```bash
+cd infrastructure
+npx aws-cdk deploy ClassifierStack --require-approval never
+```
+
+### Step 3: End-to-End Pipeline Test
+```bash
+# 1. Run the pipeline to generate test data
+cd /path/to/project
+export PYTHONPATH=$PWD/src:$PYTHONPATH
+python scripts/run_pipeline.py --accounts elonmusk --max 5
+
+# This will:
+# - Fetch tweets from Twitter
+# - Capture screenshots and perform OCR
+# - Upload metadata to S3
+# - Send messages to SQS queue
+```
+
+### Step 4: Monitor Processing
+```bash
+# Check ECS service status
+aws ecs describe-services \
+  --cluster <cluster-name> \
+  --services <service-name> \
+  --query 'services[0].runningCount'
+
+# Watch CloudWatch logs
+aws logs tail /aws/ecs/<service-name> --follow
+
+# Check DynamoDB for results
+aws dynamodb scan --table-name <table-name> --query 'Items[0]'
+```
+
+### Common Testing Issues and Solutions
+
+#### 1. Missing Dependencies
+**Symptom**: `ModuleNotFoundError` in Docker container
+**Solution**: Add missing packages to requirements.txt and rebuild:
+```
+selenium==4.21.0
+webdriver-manager==4.0.2
+Pillow==10.3.0
+```
+
+#### 2. Field Name Mismatches
+**Symptom**: `KeyError: 's3_metadata_path'` or similar
+**Solution**: Ensure consistent field names between producer and consumer:
+- Producer: `run_pipeline.py`
+- Consumer: `classifier_service.py`
+
+#### 3. Gemini API Errors
+**Symptom**: `TypeError: unexpected keyword argument 'temperature'`
+**Solution**: Use `generation_config` for Gemini API:
+```python
+generation_config = genai.types.GenerationConfig(temperature=0.0)
+response = model.generate_content(prompt, generation_config=generation_config)
+```
+
+#### 4. Local S3 Access
+**Symptom**: `NoCredentialsError` when testing locally
+**Solution**: Either:
+- Set AWS credentials: `export AWS_PROFILE=your-profile`
+- Modify code to handle local file paths for testing
+
+### Testing Checklist
+
+**Pre-deployment:**
+- [ ] All dependencies in requirements.txt
+- [ ] Docker image builds without errors
+- [ ] Container starts without import errors
+- [ ] Environment variables documented
+
+**Post-deployment:**
+- [ ] ECS service running (1/1 tasks)
+- [ ] No errors in CloudWatch logs
+- [ ] SQS messages being processed
+- [ ] DynamoDB receiving classified tweets
+- [ ] S3 screenshots accessible
+
+**Data flow verification:**
+- [ ] Tweet metadata structure matches expectations
+- [ ] Classification results properly formatted
+- [ ] All required fields populated
+- [ ] Error handling works for invalid data
+
+### Sample Test Commands
+
+```bash
+# Test single tweet processing
+python scripts/run_pipeline.py --accounts nasa --max 1
+
+# Test error handling with non-existent account
+python scripts/run_pipeline.py --accounts invalid_account_xyz --max 1
+
+# Test batch processing
+python scripts/run_pipeline.py --accounts openai google microsoft --max 10
+
+# Monitor queue depth
+aws sqs get-queue-attributes \
+  --queue-url <queue-url> \
+  --attribute-names ApproximateNumberOfMessages
+```
+
+### Expected Output Structure
+
+After successful processing, DynamoDB should contain records like:
+```json
+{
+  "tweet_id": "1234567890",
+  "author_username": "elonmusk",
+  "tweet_text": "...",
+  "classification_result": {
+    "l1_topics": ["Technology", "Business"],
+    "l2_topic": "Electric Vehicles",
+    "l1_raw_response": "...",
+    "l2_raw_response": "..."
+  },
+  "ai_models_used": {
+    "classification": "gemini-1.5-flash"
+  },
+  "screenshot_s3_path": "s3://bucket/screenshots/...",
+  "classified_at": "2025-06-08T..."
+}
+```
+
+---
+
+## 🔍 Debugging Failed Tests
+
+// ... existing code ...
