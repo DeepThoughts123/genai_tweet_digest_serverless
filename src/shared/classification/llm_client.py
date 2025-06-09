@@ -28,7 +28,7 @@ except ImportError:  # pragma: no cover – optional dependency
 class LLMClient:  # noqa: D101 – docstring below
     # Default models per provider
     _DEFAULT_OPENAI_MODEL = "gpt-3.5-turbo-0125"
-    _DEFAULT_GEMINI_MODEL = "gemini-1.5-flash"
+    _DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
 
     _PROVIDER_OPENAI = "openai"
     _PROVIDER_GEMINI = "gemini"

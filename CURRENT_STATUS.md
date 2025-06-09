@@ -119,7 +119,7 @@ Through comprehensive end-to-end testing of the tweet classification pipeline, s
 #### 4. **API Compatibility**
 - **Gemini API Issues**:
   - Temperature must use `generation_config`, not direct parameter
-  - Model name updated: `gemini-pro` → `gemini-1.5-flash`
+  - Model name updated: `gemini-pro` → `gemini-2.0-flash`
 - **Solution**: Test API calls in isolation before integration
 
 #### 5. **Local vs Production Testing**

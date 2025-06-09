@@ -230,12 +230,12 @@ npx aws-cdk deploy ClassifierStack
 ### 4.2 Outdated Model Names
 
 *   **Symptom:** API errors about invalid or unavailable model names.
-*   **Cause:** Model names change over time (e.g., "gemini-pro" → "gemini-1.5-flash").
+*   **Cause:** Model names change over time (e.g., "gemini-pro" → "gemini-2.9-flash").
 *   **Solution:** Update to current model names:
 
     ```python
     # In llm_client.py
-    _DEFAULT_GEMINI_MODEL = "gemini-1.5-flash"  # Updated from "gemini-pro"
+    _DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"  # Updated from "gemini-pro"
     ```
 
 ---

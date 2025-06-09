@@ -1158,7 +1158,7 @@ After successful processing, DynamoDB should contain records like:
     "l2_raw_response": "..."
   },
   "ai_models_used": {
-    "classification": "gemini-1.5-flash"
+    "classification": "gemini-2.0-flash"
   },
   "screenshot_s3_path": "s3://bucket/screenshots/...",
   "classified_at": "2025-06-08T..."
