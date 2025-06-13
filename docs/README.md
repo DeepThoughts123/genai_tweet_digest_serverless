@@ -7,7 +7,7 @@ Welcome to the GenAI Tweets Digest documentation! This guide helps you quickly f
 **New to the project?** Start here:
 1. [Codebase Structure](CODEBASE_STRUCTURE.md) - Understanding the project structure
 2. [Development Setup](development/DEVELOPMENT_SETUP.md) - Environment setup
-3. [Testing Guide](development/TESTING_GUIDE.md) - Running tests
+3. [Testing Guide](development/TESTING_GUIDE.md) - Running tests (130/130 backend tests passing)
 4. [Deployment Guide](deployment/DEPLOYMENT_WORKAROUNDS.md) - Deploying the application
 
 ## 📂 Documentation Categories
@@ -24,6 +24,8 @@ Learn about the system design and components:
 | [Enhanced Tweet Services](architecture/ENHANCED_TWEET_SERVICES.md) | Twitter API integration details |
 | [Email Verification Setup](architecture/EMAIL_VERIFICATION_SETUP.md) | Email verification system |
 | [Onboarding Guide](architecture/ONBOARDING_GUIDE.md) | New team member guide |
+| **[Twitter Account Discovery](../src/shared/twitter_account_discovery_service.py)** | **NEW** - GenAI account discovery service |
+| **[Twitter Account Discovery Service](architecture/TWITTER_ACCOUNT_DISCOVERY_SERVICE.md)** | **NEW** - Complete documentation for GenAI account discovery |
 
 ### 🛠️ **Development**
 Development guides and testing documentation:

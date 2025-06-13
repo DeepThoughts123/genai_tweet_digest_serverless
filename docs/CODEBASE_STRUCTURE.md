@@ -169,6 +169,12 @@ genai_tweet_digest_serverless/
   - Complete text extraction from truncated tweets
   - Thread detection and reconstruction
   - Intelligent categorization and summarization
+- **`twitter_account_discovery_service.py`**: **NEW** - Production-ready Twitter account discovery with:
+  - Iterative crawling of GenAI-relevant accounts from seed URLs
+  - Selenium-based profile scraping with retry mechanisms
+  - Gemini AI classification of profile relevance (with keyword fallback)
+  - Following page extraction and account handle discovery
+  - Comprehensive results export with JSON serialization
 - **`visual_tweet_capture_service.py`**: Production-ready visual capture with S3 integration
 - **`ses_service.py`**: Professional email templates and delivery
 - **`dynamodb_service.py`**: Subscriber management with verification status

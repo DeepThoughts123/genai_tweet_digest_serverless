@@ -1,0 +1,35 @@
+{
+  "total_iterations": 2,
+  "total_profiles_processed": 1,
+  "genai_relevant_profiles": [
+    {
+      "username": "AndrewYNg",
+      "handle": "@AndrewYNg",
+      "profile_url": "https://x.com/AndrewYNg",
+      "description": "",
+      "followers_count": null,
+      "following_count": null,
+      "is_genai_relevant": true,
+      "genai_classification_reason": "YES - Andrew Ng is a well-known figure in the AI field, particularly machine learning and deep learning. He co-founded Coursera, co-founded Google Brain, and was the Chief Scientist at Baidu. While his bio is empty in this example, the username \"@AndrewYNg\" strongly suggests this is him. He regularly creates AI-related content, educates through online courses, and is considered an AI thought leader. Therefore, even without bio information, he's highly likely active in the generative AI field (as generative AI falls under the broader AI umbrella in which he's very active).",
+      "profile_screenshot_path": null,
+      "following_page_screenshots": null,
+      "discovered_following": [],
+      "iteration_discovered": 0,
+      "discovery_timestamp": "2025-06-13T12:03:26.151271"
+    }
+  ],
+  "non_relevant_profiles": [],
+  "failed_profiles": [],
+  "discovery_summary": {
+    "total_iterations_completed": 2,
+    "total_profiles_processed": 1,
+    "genai_relevant_count": 1,
+    "non_relevant_count": 0,
+    "failed_count": 0,
+    "discovery_timestamp": "2025-06-13T12:03:36.529146",
+    "seed_urls": [
+      "https://x.com/AndrewYNg"
+    ],
+    "max_iterations_requested": 1
+  }
+}
