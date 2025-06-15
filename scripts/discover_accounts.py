@@ -140,7 +140,8 @@ Examples:
             logger.info("-" * 40)
             for i, profile in enumerate(result.genai_relevant_profiles, 1):
                 logger.info(f"{i:2d}. {profile.handle} ({profile.username})")
-                logger.info(f"     Description: {profile.description[:100]}{'...' if len(profile.description) > 100 else ''}")
+                description = profile.description or "No description available"
+                logger.info(f"     Description: {description[:100]}{'...' if len(description) > 100 else ''}")
                 logger.info(f"     Followers: {profile.followers_count or 'Unknown'}")
                 if profile.discovered_following:
                     logger.info(f"     Following GenAI accounts: {len(profile.discovered_following)}")
