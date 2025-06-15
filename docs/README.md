@@ -24,8 +24,9 @@ Learn about the system design and components:
 | [Enhanced Tweet Services](architecture/ENHANCED_TWEET_SERVICES.md) | Twitter API integration details |
 | [Email Verification Setup](architecture/EMAIL_VERIFICATION_SETUP.md) | Email verification system |
 | [Onboarding Guide](architecture/ONBOARDING_GUIDE.md) | New team member guide |
-| **[Twitter Account Discovery](../src/shared/twitter_account_discovery_service.py)** | **NEW** - GenAI account discovery service |
-| **[Twitter Account Discovery Service](architecture/TWITTER_ACCOUNT_DISCOVERY_SERVICE.md)** | **NEW** - Complete documentation for GenAI account discovery |
+| **[Twitter Account Discovery](../src/shared/twitter_account_discovery_service.py)** | **ENHANCED** - GenAI account discovery service with image-based AI extraction |
+| **[Twitter Account Discovery Service](architecture/TWITTER_ACCOUNT_DISCOVERY_SERVICE.md)** | **ENHANCED** - Complete documentation for enhanced discovery service |
+| **[Twitter Discovery Quick Reference](architecture/TWITTER_DISCOVERY_QUICK_REFERENCE.md)** | **NEW** - Quick start guide for enhanced discovery features |
 
 ### 🛠️ **Development**
 Development guides and testing documentation:
@@ -109,6 +110,9 @@ Implementation history and migration documentation:
 
 **🔍 Understand tweet processing**
 → [Tweet Processing Pipeline](architecture/tweet_processing_pipeline.md) + [Visual Tweet Capture Service](architecture/visual_tweet_capture_service.md)
+
+**🐦 Discover GenAI Twitter accounts**  
+→ [Twitter Discovery Quick Reference](architecture/TWITTER_DISCOVERY_QUICK_REFERENCE.md) + [Twitter Account Discovery Service](architecture/TWITTER_ACCOUNT_DISCOVERY_SERVICE.md)
 
 **📊 Review implementation history**
 → [Implementation Progress](historical/IMPLEMENTATION_PROGRESS.md)

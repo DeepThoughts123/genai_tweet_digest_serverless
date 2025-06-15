@@ -74,6 +74,7 @@ cd deployment/scripts
 - **Database Services**: DynamoDB operations
 - **Email Services**: Amazon SES integration
 - **Visual Capture**: Selenium-based screenshot service
+- **Twitter Account Discovery**: **Enhanced image-based discovery service with Gemini AI, automated login, and anti-detection capabilities**
 - **Processing Orchestrator**: Intelligent routing between Lambda/Fargate
 
 ## 📊 Cost Analysis

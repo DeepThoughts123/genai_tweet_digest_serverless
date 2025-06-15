@@ -55,6 +55,14 @@ export TWITTER_BEARER_TOKEN="your_twitter_token"
 export GEMINI_API_KEY="your_gemini_key"
 export FROM_EMAIL="your-verified-ses-email@domain.com"
 
+# Twitter Account Discovery Service (Enhanced)
+# Note: Twitter credentials are hardcoded in the service for reliability
+# GEMINI_API_KEY is required for image-based profile extraction
+export GEMINI_API_KEY="your-gemini-api-key"  # Required for enhanced discovery
+
+# Optional: Custom Chrome binary path for Selenium
+export CHROME_BINARY_PATH="/path/to/chrome"
+
 # Verify AWS credentials
 aws sts get-caller-identity
 ```
@@ -119,6 +127,39 @@ python -m pytest tests/test_email_verification.py::TestEmailVerificationService 
 
 # Test subscription flow
 python -m pytest tests/test_email_verification.py::TestSubscriptionWithVerification -v
+```
+
+### Testing Email Verification Flow
+```bash
+# 1. Deploy with email verification enabled
+./scripts/deploy.sh
+
+# 2. Test subscription
+curl -X POST https://api-url/subscribe -d '{"email": "test@example.com"}'
+
+# 3. Check verification email in logs
+aws logs tail /aws/lambda/genai-tweets-digest-subscription-production
+
+# 4. Test verification endpoint
+curl "https://api-url/verify?token=your-verification-token"
+```
+
+### Testing Enhanced Twitter Account Discovery
+```bash
+# 1. Set required environment variable
+export GEMINI_API_KEY="your-gemini-api-key"
+
+# 2. Test browser detection bypass
+python scripts/test_browser_detection.py
+
+# 3. Test enhanced discovery service
+python scripts/test_discovery_service.py
+
+# 4. Run full discovery with real accounts
+python scripts/discover_accounts.py --seed "https://x.com/AndrewYNg" --max-iterations 0
+
+# 5. Run unit tests for discovery service
+python -m pytest tests/unit/test_shared/test_twitter_account_discovery_service.py -v
 ```
 
 ## 📁 Project Structure for Development
@@ -205,6 +246,24 @@ aws logs tail /aws/lambda/genai-tweets-digest-subscription-production
 
 # 4. Test verification endpoint
 curl "https://api-url/verify?token=your-verification-token"
+```
+
+### Testing Enhanced Twitter Account Discovery
+```bash
+# 1. Set required environment variable
+export GEMINI_API_KEY="your-gemini-api-key"
+
+# 2. Test browser detection bypass
+python scripts/test_browser_detection.py
+
+# 3. Test enhanced discovery service
+python scripts/test_discovery_service.py
+
+# 4. Run full discovery with real accounts
+python scripts/discover_accounts.py --seed "https://x.com/AndrewYNg" --max-iterations 0
+
+# 5. Run unit tests for discovery service
+python -m pytest tests/unit/test_shared/test_twitter_account_discovery_service.py -v
 ```
 
 ## 🚨 Troubleshooting
