@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from botocore.exceptions import ClientError
-from .config import config
+from ....shared.config.settings import config
 
 class SubscriberService:
     """Manage subscribers in DynamoDB."""

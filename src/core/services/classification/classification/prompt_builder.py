@@ -1,10 +1,12 @@
-"""Prompt builder utilities for the hierarchical tweet classifier."""
+"""Prompt building utilities for hierarchical tweet classification."""
 from __future__ import annotations
 
 from textwrap import dedent
-from typing import List
+from typing import List, Dict, Any, Optional
+import json
+import logging
 
-from shared.taxonomy import get_registry
+from .....shared.taxonomy import get_registry
 
 _SYSTEM_MESSAGE = (
     "You are an expert taxonomy classifier for GenAI tweets. "

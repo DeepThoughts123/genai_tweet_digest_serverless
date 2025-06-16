@@ -7,8 +7,8 @@ import boto3
 from typing import List, Dict, Any
 from datetime import datetime
 from botocore.exceptions import ClientError
-from .config import config
-from .unsubscribe_service import UnsubscribeService
+from ...shared.config.settings import config
+from ...shared.unsubscribe_service import UnsubscribeService
 
 class SESEmailService:
     """Simplified email service using Amazon SES."""

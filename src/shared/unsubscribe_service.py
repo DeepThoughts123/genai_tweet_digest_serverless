@@ -1,8 +1,11 @@
 import boto3
 import uuid
 from datetime import datetime
-from .config import config
-from .dynamodb_service import SubscriberService
+from .config.settings import config
+from ..infrastructure.persistence.dynamodb.subscription_store import SubscriberService
+import hashlib
+import time
+from typing import Optional
 
 class UnsubscribeService:
     def __init__(self):

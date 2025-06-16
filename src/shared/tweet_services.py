@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from tweepy.errors import TweepyException
 import logging
-from .config import config
+from .config.settings import config
 
 class TweetFetcher:
     """Basic tweet fetcher for visual capture support."""

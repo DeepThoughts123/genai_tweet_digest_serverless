@@ -8,11 +8,12 @@ This module provides common functionality used across both Lambda and Fargate co
 __version__ = "2.0.0"
 
 # Make core services easily importable
-from .config import config
+from .config.settings import config
 from .tweet_services import TweetFetcher, TweetCategorizer, TweetSummarizer, S3DataManager
-from .dynamodb_service import SubscriberService
-from .ses_service import SESEmailService
-from .visual_tweet_capture_service import VisualTweetCaptureService
+# TODO: Complete service reorganization - temporarily commented out
+# from ..infrastructure.persistence.dynamodb.subscription_store import SubscriberService
+# from ..infrastructure.email.ses_client import SESEmailService
+# from ..infrastructure.external.selenium_client import VisualTweetCaptureService
 from .processing_orchestrator import ProcessingOrchestrator
 
 __all__ = [
@@ -21,8 +22,8 @@ __all__ = [
     'TweetCategorizer', 
     'TweetSummarizer',
     'S3DataManager',
-    'SubscriberService',
-    'SESEmailService',
-    'VisualTweetCaptureService',
+    # 'SubscriberService',
+    # 'SESEmailService',
+    # 'VisualTweetCaptureService',
     'ProcessingOrchestrator'
 ] 

@@ -6,8 +6,8 @@ import boto3
 import pytest
 from moto import mock_aws
 
-from shared.classification.llm_client import LLMClient
-from src.fargate.classifier_service import ClassifierService
+from src.core.services.classification.classification.llm_client import LLMClient
+from src.serverless.containers.fargate.classifier_service import ClassifierService
 
 
 class _NoOpLLM:
@@ -44,7 +44,7 @@ def test_end_to_end_classifier():
     os.environ["DDB_TABLE"] = table_name
 
     # Patch LLMClient globally to avoid real API call
-    import src.fargate.classifier_service as cs
+    import src.serverless.containers.fargate.classifier_service as cs
 
     cs.LLMClient = lambda api_key=None: _NoOpLLM()  # type: ignore
 

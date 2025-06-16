@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass
 from typing import List
 
-from shared.taxonomy import get_registry
+from .....shared.taxonomy import get_registry
 
 from .llm_client import LLMClient
 from .prompt_builder import PromptBuilder

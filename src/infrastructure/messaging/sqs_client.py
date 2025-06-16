@@ -38,6 +38,14 @@ class SQSQueue:
     # ------------------------------------------------------------------
     # Public helpers
     # ------------------------------------------------------------------
+    def send_message(self, message_body: dict) -> None:
+        """Send a message to the queue."""
+        self._client.send_message(
+            QueueUrl=self._url,
+            MessageBody=json.dumps(message_body)
+        )
+        logging.debug("Sent message to queue: %s", self._url)
+
     def fetch_batch(self, max_messages: int = 10, wait_seconds: int = 1) -> List[dict]:
         response = self._client.receive_message(
             QueueUrl=self._url,
@@ -60,6 +68,10 @@ class InMemoryQueue:
 
     def send(self, body: dict):  # noqa: D401 – non-boto
         self._items.append(json.dumps(body))
+    
+    def send_message(self, message_body: dict) -> None:
+        """Send a message to the queue (compatible with SQSQueue)."""
+        self.send(message_body)
 
     def fetch_batch(self, max_messages: int = 10, wait_seconds: int = 0) -> List[dict]:
         batch = self._items[:max_messages]

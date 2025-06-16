@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    environment:
+      - ENVIRONMENT=development
+      - TWITTER_BEARER_TOKEN=${TWITTER_BEARER_TOKEN}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - ./outputs:/app/outputs
+      - ./.env:/app/.env
+    ports:
+      - "8000:8000"
+    
+  localstack:
+    image: localstack/localstack:latest
+    environment:
+      - SERVICES=s3,dynamodb,sqs,ses
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack_data:/tmp/localstack
+
+volumes:
+  localstack_data:
