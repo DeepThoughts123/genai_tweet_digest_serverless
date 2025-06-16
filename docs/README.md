@@ -42,6 +42,7 @@ Development guides and testing documentation:
 | [E2E Testing Plan](development/E2E_TESTING_PLAN.md) | End-to-end testing strategy |
 | [E2E Testing Quick Reference](development/E2E_TESTING_QUICK_REFERENCE.md) | Testing commands and examples |
 | [Debugging Guide](development/DEBUGGING_FAILED_TO_FETCH.md) | Common debugging scenarios |
+| **[Parallel Processing Implementation](development/PARALLEL_PROCESSING_IMPLEMENTATION.md)** | **NEW** - Detailed implementation guide with code examples and bug fixes |
 
 ### 🚀 **Deployment**
 Deployment guides and operational documentation:
@@ -51,9 +52,10 @@ Deployment guides and operational documentation:
 | [Deployment Workarounds](deployment/DEPLOYMENT_WORKAROUNDS.md) | Production deployment guide |
 | [Deployment Testing Guide](deployment/DEPLOYMENT_TESTING_GUIDE.md) | Testing deployment procedures |
 | [Fargate Deployment Checklist](deployment/FARGATE_DEPLOYMENT_CHECKLIST.md) | Pre-deployment verification steps |
-| [Lambda Optimization Strategy](deployment/LAMBDA_OPTIMIZATION_STRATEGY.md) | Performance optimization |
+| [Lambda Optimization Strategy](deployment/LAMBDA_OPTIMIZATION_STRATEGY.md) | Lambda package size optimization |
 | [Stack Management Guide](deployment/STACK_MANAGEMENT_GUIDE.md) | CloudFormation management |
 | [Schedule Management Guide](deployment/SCHEDULE_MANAGEMENT_GUIDE.md) | EventBridge scheduling |
+| **[Parallel Processing Optimization](deployment/PARALLEL_PROCESSING_OPTIMIZATION.md)** | **NEW** - Runtime performance optimization with 2-3x improvement results |
 
 ### 📚 **Reference**
 Quick references and best practices:

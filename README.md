@@ -50,7 +50,30 @@ cp .env.template .env
 # Edit .env with your API keys and AWS settings
 ```
 
-### 3. Deploy Infrastructure
+### 3. **⚡ NEW: Optimized Parallel Processing**
+Test the new parallel processing pipeline with high-profile AI accounts:
+
+```bash
+# Set up environment variables
+export TWITTER_BEARER_TOKEN="your_twitter_token"
+export GEMINI_API_KEY="your_gemini_key"  # or OPENAI_API_KEY
+
+# Run optimized pipeline (2-3x faster than sequential)
+python optimized_tweet_processor.py
+```
+
+**Features:**
+- **Parallel account processing** with intelligent rate limiting
+- **Thread detection** for multi-tweet content
+- **Full AI classification** using Gemini/OpenAI APIs
+- **Rich data capture** with engagement metrics
+- **Production-ready** error handling and monitoring
+
+**📚 Documentation:**
+- **[Parallel Processing Optimization](docs/deployment/PARALLEL_PROCESSING_OPTIMIZATION.md)** - Performance results and deployment strategy
+- **[Implementation Guide](docs/development/PARALLEL_PROCESSING_IMPLEMENTATION.md)** - Detailed code implementation and bug fixes
+
+### 4. Deploy Infrastructure
 ```bash
 cd deployment/scripts
 ./deploy-full.sh
